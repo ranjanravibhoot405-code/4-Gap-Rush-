@@ -33,6 +33,7 @@ button:disabled{opacity:.35}
 
 <div class="panel">
 <input id="name" placeholder="Player name" value="Ravi Ranjan">
+<br><label for="character" style="display:block;margin:8px;color:#50f6c5;font-weight:bold">Choose your runner</label><select id="character" style="padding:12px;border-radius:9px;font-size:16px;width:90%;max-width:300px"><option value="nobita">Nobita-style Boy</option><option value="suzuka">Suzuka-style Girl</option></select><p style="font-size:13px;color:#cbd5e1">Choose before creating or joining a room.</p>
 <br>
 <button onclick="createRoom()">CREATE ROOM</button>
 <hr>
@@ -310,13 +311,19 @@ function init3D(){
 
   // Animated 3D human runner (not a vehicle/object)
   car=new THREE.Group();
-  const skin=new THREE.MeshStandardMaterial({color:0xc8875b,roughness:.8});
-  const shirt=new THREE.MeshStandardMaterial({color:0xff3b30,roughness:.65});
-  const shorts=new THREE.MeshStandardMaterial({color:0x172554,roughness:.8});
+  const chosen=document.getElementById("character")?.value||"nobita";
+  const girl=chosen==="suzuka";
+  const skin=new THREE.MeshStandardMaterial({color:0xf2c39a,roughness:.8});
+  const shirt=new THREE.MeshStandardMaterial({color:girl?0xff79b7:0x2563eb,roughness:.65});
+  const shorts=new THREE.MeshStandardMaterial({color:girl?0xfce7f3:0x1e40af,roughness:.8});
   const shoes=new THREE.MeshStandardMaterial({color:0xf8fafc,roughness:.5});
   const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.38,.72,6,12),shirt); torso.position.y=1.55; car.add(torso);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(.27,16,16),skin); head.position.y=2.35; car.add(head);
-  const hair=new THREE.Mesh(new THREE.SphereGeometry(.275,16,8,0,Math.PI*2,0,Math.PI*.55),new THREE.MeshStandardMaterial({color:0x21160f})); hair.position.y=2.48; car.add(hair);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(girl?.31:.32,20,20),skin); head.scale.set(1,1.05,.92); head.position.y=2.35; car.add(head);
+  const hairMat=new THREE.MeshStandardMaterial({color:0x21160f});
+  const hair=new THREE.Mesh(new THREE.SphereGeometry(girl?.34:.36,20,12,0,Math.PI*2,0,Math.PI*.62),hairMat); hair.position.y=2.49; car.add(hair);
+  if(girl){const backHair=new THREE.Mesh(new THREE.SphereGeometry(.28,16,12),hairMat);backHair.scale.set(.9,1.25,.65);backHair.position.set(0,2.18,-.12);car.add(backHair);const bow=new THREE.Mesh(new THREE.SphereGeometry(.09,12,8),new THREE.MeshStandardMaterial({color:0xff3b8d}));bow.position.set(.25,2.68,0);car.add(bow);}
+  else {const glassesMat=new THREE.MeshStandardMaterial({color:0x111827,metalness:.35,roughness:.3});for(const x of [-.13,.13]){const ring=new THREE.Mesh(new THREE.TorusGeometry(.105,.018,8,20),glassesMat);ring.position.set(x,2.37,.28);car.add(ring);}const bridge=new THREE.Mesh(new THREE.BoxGeometry(.08,.018,.02),glassesMat);bridge.position.set(0,2.37,.29);car.add(bridge);}
+  if(girl){const skirt=new THREE.Mesh(new THREE.CylinderGeometry(.22,.38,.3,16),new THREE.MeshStandardMaterial({color:0xf472b6}));skirt.position.y=1.12;car.add(skirt);}
   const limbs=[];
   function makeLimb(x,y,len,mat,arm){const pivot=new THREE.Group();pivot.position.set(x,y,0);const limb=new THREE.Mesh(new THREE.CapsuleGeometry(arm?.105:.14,len,4,8),mat);limb.position.y=-len/2;pivot.add(limb);car.add(pivot);return pivot;}
   for(const side of [-1,1]){
