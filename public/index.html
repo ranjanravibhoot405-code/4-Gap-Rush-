@@ -22,7 +22,7 @@ button:disabled{opacity:.35}
 #game canvas{width:100%;height:100%;display:block}
 #hud{position:absolute;top:8px;left:0;right:0;pointer-events:none;text-shadow:0 2px 4px black}
 #controls{position:absolute;bottom:12px;left:0;right:0;display:flex;justify-content:center;gap:6px}
-#controls button{padding:15px 12px;min-width:55px}
+#controls button{padding:15px 12px;min-width:55px} #jumpGuide{position:absolute;left:5%;right:5%;bottom:76px;background:rgba(5,8,20,.92);border:2px solid #50f6c5;border-radius:12px;padding:8px;z-index:3;text-shadow:none} #jumpGuide b{color:#ffd600} #jumpGuide small{display:block;color:#dbeafe;margin:4px} #controls{z-index:4}
 .hidden{display:none}
 </style>
 </head>
@@ -141,7 +141,7 @@ function connect(){
       recovery=2;
       alive=true;
       init3D();
-      document.getElementById("controls").classList.remove("hidden");
+      document.getElementById("controls").classList.remove("hidden");\n      document.getElementById("jumpGuide").classList.remove("hidden");
       document.getElementById("raceStatus").textContent="🏁 Race started!";
       
     }
@@ -207,7 +207,7 @@ function updateHUD(){
   document.getElementById("distance").textContent=
     "Distance: "+Math.floor(distance)+" / 2000 m";
   const nextGap=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
-  const remain=nextGap?(typeof nextGap==="number"?nextGap:nextGap.at)-distance:Math.max(0,2000-distance);
+  const remain=nextGap?(typeof nextGap==="number"?nextGap:nextGap.at)-distance:Math.max(0,2000-distance);\n  const pitTitle=document.getElementById("pitTitle"); const pitInfo=document.getElementById("pitInfo");\n  if(pitTitle) pitTitle.textContent=nextGap?"⚠️ GIANT PIT • "+Math.ceil(remain)+" m AHEAD":"🏁 FINISH LINE";\n  if(pitInfo) pitInfo.textContent=nextGap?"Pit width: 8 m • Jump options: 3 / 5 / 7 / 9 m":"Race finish approaching";
   const rs=document.getElementById("raceStatus");
   if(rs && racing && !rs.textContent.includes("FINISHED")) rs.dataset.remaining="Next gap: "+Math.ceil(remain)+" m";
   document.getElementById("recovery").textContent=
@@ -222,7 +222,7 @@ function init3D(){
   if(renderer){
     renderer.dispose();
     container.innerHTML=
-      '<div id="hud"><b id="distance">Distance: 0 / 2000</b><p id="recovery">Recovery: 2</p><p id="nextGapHud">NEXT GAP: 400 m</p></div><div id="controls"><button onclick="jump(3)">3</button><button onclick="jump(5)">5</button><button onclick="jump(7)">7</button><button onclick="jump(9)">9</button></div>';
+      '<div id="hud"><b id="distance">Distance: 0 / 2000</b><p id="recovery">Recovery: 2</p><p id="nextGapHud">NEXT GAP: 400 m</p></div><div id="jumpGuide"><b id="pitTitle">⚠️ BIG PIT AHEAD</b><small id="pitInfo">Choose jump distance</small></div><div id="controls"><button onclick="jump(3)">3 m</button><button onclick="jump(5)">5 m</button><button onclick="jump(7)">7 m</button><button onclick="jump(9)">9 m</button></div>';
   }
 
   scene=new THREE.Scene();
@@ -301,16 +301,17 @@ function init3D(){
   gapObjects=[];
   gaps.forEach((g,i)=>{
     const at=typeof g==="number"?g:g.at;
-    const gap=new THREE.Mesh(
-      new THREE.BoxGeometry(11,.32,8),
-      new THREE.MeshStandardMaterial({color:0x02030a,roughness:1})
-    );
-    const warning=new THREE.Mesh(new THREE.BoxGeometry(11,.04,.28),new THREE.MeshStandardMaterial({color:0xffd600,emissive:0x553300}));
-    warning.position.set(0,.08,-at/10-4.05);scene.add(warning);
-    const warning2=warning.clone();warning2.position.z=-at/10+4.05;scene.add(warning2);
-    gap.position.set(0,-.12,-at/10);
-    scene.add(gap);
-    gapObjects.push(gap);
+    const pit=new THREE.Group();
+    const black=new THREE.MeshStandardMaterial({color:0x02030a,roughness:1});
+    const wallMat=new THREE.MeshStandardMaterial({color:0x161b2b,roughness:1});
+    const floor=new THREE.Mesh(new THREE.BoxGeometry(11,.35,8),black); floor.position.set(0,-3.8,0); pit.add(floor);
+    for(const x of [-5.45,5.45]){const wall=new THREE.Mesh(new THREE.BoxGeometry(.35,7.5,8),wallMat);wall.position.set(x,-.05,0);pit.add(wall);}
+    for(const z of [-3.9,3.9]){const wall=new THREE.Mesh(new THREE.BoxGeometry(11,7.5,.25),wallMat);wall.position.set(0,-.05,z);pit.add(wall);}
+    pit.position.set(0,-.1,-at/10); scene.add(pit);
+    const warningMat=new THREE.MeshStandardMaterial({color:0xffd600,emissive:0x553300});
+    const warning=new THREE.Mesh(new THREE.BoxGeometry(11,.08,.32),warningMat); warning.position.set(0,.06,-at/10-4.15);scene.add(warning);
+    const warning2=warning.clone();warning2.position.z=-at/10+4.15;scene.add(warning2);
+    gapObjects.push(pit);
   });
 
   lastDistance=distance;
