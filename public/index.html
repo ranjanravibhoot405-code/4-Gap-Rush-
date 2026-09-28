@@ -61,6 +61,7 @@ button:disabled{opacity:.35}
 <div id="hud">
 <b id="distance">Distance: 0 / 2000</b>
 <p id="recovery">Recovery: 2</p>
+<p id="nextGapHud">NEXT GAP: 400 m</p>
 </div>
 <div id="controls" class="hidden">
 <button onclick="jump(3)">3</button>
@@ -211,6 +212,8 @@ function updateHUD(){
   if(rs && racing && !rs.textContent.includes("FINISHED")) rs.dataset.remaining="Next gap: "+Math.ceil(remain)+" m";
   document.getElementById("recovery").textContent=
     "Recovery: "+recovery;
+  const ng=document.getElementById("nextGapHud");
+  if(ng) ng.textContent=nextGap?"NEXT GAP: "+Math.ceil(remain)+" m":"FINISH: "+Math.max(0,2000-Math.floor(distance))+" m";
 }
 
 function init3D(){
@@ -219,7 +222,7 @@ function init3D(){
   if(renderer){
     renderer.dispose();
     container.innerHTML=
-      '<div id="hud"><b id="distance">Distance: 0 / 2000</b><p id="recovery">Recovery: 2</p></div><div id="controls"><button onclick="jump(3)">3</button><button onclick="jump(5)">5</button><button onclick="jump(7)">7</button><button onclick="jump(9)">9</button></div>';
+      '<div id="hud"><b id="distance">Distance: 0 / 2000</b><p id="recovery">Recovery: 2</p><p id="nextGapHud">NEXT GAP: 400 m</p></div><div id="controls"><button onclick="jump(3)">3</button><button onclick="jump(5)">5</button><button onclick="jump(7)">7</button><button onclick="jump(9)">9</button></div>';
   }
 
   scene=new THREE.Scene();
@@ -235,6 +238,8 @@ function init3D(){
   renderer=new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(container.clientWidth,container.clientHeight);
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
 
   scene.add(new THREE.HemisphereLight(0xffffff,0x444466,2));
@@ -242,6 +247,8 @@ function init3D(){
   const sun=new THREE.DirectionalLight(0xffffff,2);
   sun.position.set(-5,15,10);
   scene.add(sun);
+  sun.castShadow=true;
+  renderer && (renderer.shadowMap.enabled=true);
 
   // Road
   const roadGeo=new THREE.PlaneGeometry(12,300);
@@ -295,9 +302,12 @@ function init3D(){
   gaps.forEach((g,i)=>{
     const at=typeof g==="number"?g:g.at;
     const gap=new THREE.Mesh(
-      new THREE.BoxGeometry(11,.25,8),
-      new THREE.MeshStandardMaterial({color:0x080808})
+      new THREE.BoxGeometry(11,.32,8),
+      new THREE.MeshStandardMaterial({color:0x02030a,roughness:1})
     );
+    const warning=new THREE.Mesh(new THREE.BoxGeometry(11,.04,.28),new THREE.MeshStandardMaterial({color:0xffd600,emissive:0x553300}));
+    warning.position.set(0,.08,-at/10-4.05);scene.add(warning);
+    const warning2=warning.clone();warning2.position.z=-at/10+4.05;scene.add(warning2);
     gap.position.set(0,-.12,-at/10);
     scene.add(gap);
     gapObjects.push(gap);
