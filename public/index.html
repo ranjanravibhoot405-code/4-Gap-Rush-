@@ -86,6 +86,7 @@ let visualDistance=0;
 let lastFrame=0;
 let lastStepShown=0;
 let sceneryClock=0;
+let raceStartedAt=0;
 let limbs=[];
 
 function connect(){
@@ -139,6 +140,7 @@ function connect(){
 
     if(m.type==="race_start"){
       racing=true;
+      raceStartedAt=performance.now();
       showRacePage();
       gaps=m.gaps||[400,800,1200,1600];
       distance=0;
@@ -170,8 +172,15 @@ function connect(){
     if(m.type==="race_over"){
       racing=false;
       document.getElementById("controls").classList.add("hidden");
-      document.getElementById("raceStatus").textContent="🏁 RACE OVER!";
-      document.getElementById("raceStatus").innerHTML += '<br><button onclick="returnLobby()">BACK TO LOBBY</button>';
+      const results=m.results||[];
+      const fmt=ms=>ms==null?"DNF":{min:Math.floor(ms/60000),sec:((ms%60000)/1000).toFixed(2)}.min.toString().padStart(2,"0")+":"+((ms%60000)/1000).toFixed(2).padStart(5,"0");
+      const box=document.getElementById("raceStatus");
+      box.textContent="";
+      const title=document.createElement("h2");title.textContent=m.winner?"🏆 WINNER: "+m.winner:"RACE OVER • No finisher";box.appendChild(title);
+      const table=document.createElement("div");table.style.cssText="background:#1d2540;padding:12px;border-radius:12px;margin:8px auto;max-width:420px";
+      results.forEach((p,i)=>{const row=document.createElement("p");row.textContent=(i+1)+". "+p.name+" — "+(p.finished?fmt(p.time):"DNF");row.style.color=i===0&&p.finished?"#50f6c5":"white";table.appendChild(row)});
+      box.appendChild(table);
+      const back=document.createElement("button");back.textContent="BACK TO LOBBY";back.onclick=returnLobby;box.appendChild(back);
     }
 
     if(m.type==="error")status(m.message);
