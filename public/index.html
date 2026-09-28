@@ -141,7 +141,8 @@ function connect(){
       recovery=2;
       alive=true;
       init3D();
-      document.getElementById("controls").classList.remove("hidden");\n      document.getElementById("jumpGuide").classList.remove("hidden");
+      document.getElementById("controls").classList.remove("hidden");
+      document.getElementById("jumpGuide").classList.remove("hidden");
       document.getElementById("raceStatus").textContent="🏁 Race started!";
       
     }
@@ -207,7 +208,10 @@ function updateHUD(){
   document.getElementById("distance").textContent=
     "Distance: "+Math.floor(distance)+" / 2000 m";
   const nextGap=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
-  const remain=nextGap?(typeof nextGap==="number"?nextGap:nextGap.at)-distance:Math.max(0,2000-distance);\n  const pitTitle=document.getElementById("pitTitle"); const pitInfo=document.getElementById("pitInfo");\n  if(pitTitle) pitTitle.textContent=nextGap?"⚠️ GIANT PIT • "+Math.ceil(remain)+" m AHEAD":"🏁 FINISH LINE";\n  if(pitInfo) pitInfo.textContent=nextGap?"Pit width: 8 m • Jump options: 3 / 5 / 7 / 9 m":"Race finish approaching";
+  const remain=nextGap?(typeof nextGap==="number"?nextGap:nextGap.at)-distance:Math.max(0,2000-distance);
+  const pitTitle=document.getElementById("pitTitle"); const pitInfo=document.getElementById("pitInfo");
+  if(pitTitle) pitTitle.textContent=nextGap?"⚠️ GIANT PIT • "+Math.ceil(remain)+" m AHEAD":"🏁 FINISH LINE";
+  if(pitInfo) pitInfo.textContent=nextGap?"Pit width: 8 m • Jump options: 3 / 5 / 7 / 9 m":"Race finish approaching";
   const rs=document.getElementById("raceStatus");
   if(rs && racing && !rs.textContent.includes("FINISHED")) rs.dataset.remaining="Next gap: "+Math.ceil(remain)+" m";
   document.getElementById("recovery").textContent=
