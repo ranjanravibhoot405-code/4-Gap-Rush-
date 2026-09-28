@@ -10,6 +10,7 @@ const wss = new WebSocketServer({ server });
 const rooms = new Map();
 
 app.use(express.static(path.join(__dirname, "public")));
+app.get("/race", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
 const send = (ws, msg) => {
   if (ws.readyState === 1) {
