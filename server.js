@@ -234,43 +234,51 @@ wss.on("connection", ws => {
       });
     }
 
-    // JUMP
+    // CLIENT DISTANCE PROGRESS: server only accepts progress toward the next gap.
+    if (m.type === "progress") {
+      if (!room.started || !player.alive || player.finished) return;
+      player.gapIndex = player.gapIndex || 0;
+      const nextGap = room.gaps[player.gapIndex];
+      const reported = Number(m.dist);
+      if (!Number.isFinite(reported)) return;
+      const ceiling = nextGap ? nextGap.at : 2000;
+      player.dist = Math.max(player.dist, Math.min(reported, ceiling));
+      return;
+    }
+
+    // JUMP: only allow the choice at the matching 400 m checkpoint.
     if (m.type === "jump") {
       if (!room.started || !player.alive || player.finished) return;
-      
       player.usedChoices = player.usedChoices || [];
       player.gapIndex = player.gapIndex || 0;
+      const gap = room.gaps[player.gapIndex];
+      if (!gap) {
+        // Final gap is completed; run the final stretch to the finish line.
+        if (player.gapIndex >= room.gaps.length && player.dist >= 1600) {
+          player.dist = 2000;
+          player.finished = true;
+          player.finishTime = Date.now() - room.startedAt;
+          send(ws, { type: "jump_result", result: "finish", recovery: player.recovery, dist: player.dist, usedChoices: player.usedChoices });
+          broadcast(room, roomState(room));
+          if ([...room.players.values()].every(p => p.finished || !p.alive)) {
+            const results = [...room.players.values()].map(p => ({name:p.name, finished:p.finished, alive:p.alive, time:p.finishTime ?? null, dist:p.dist})).sort((a,b) => a.finished!==b.finished ? (a.finished?-1:1) : (a.time??Infinity)-(b.time??Infinity));
+            broadcast(room, { type:"race_over", results, winner:results.find(p=>p.finished)?.name || null });
+          }
+        }
+        return;
+      }
+
+      // A jump is valid only when the runner reaches the 400 m checkpoint
+      // (within 28 m before it, through 5 m after it).
+      if (player.dist < gap.at - 28 || player.dist > gap.at + 5) {
+        return send(ws, { type:"error", message:"Wait until the " + gap.at + " m jump checkpoint!" });
+      }
+
       const choice = Number(m.choice);
       const remainingChoices = [3,5,7,9].filter(n => !player.usedChoices.includes(n));
       if (!remainingChoices.includes(choice)) {
         return send(ws, { type:"error", message:"That jump option is already used. Remaining: " + remainingChoices.join(", ") });
       }
-      const gap = room.gaps[player.gapIndex];
-
-// All gaps completed: finish the race
-if (!gap) {
-  player.dist = 2000;
-  player.finished = true;
-  player.finishTime = Date.now() - room.startedAt;
-
-  send(ws, {
-    type: "jump_result",
-    result: "finish",
-    recovery: player.recovery,
-    dist: player.dist
-  });
-
-  broadcast(room, roomState(room));
-
-  if ([...room.players.values()].every(p => p.finished || !p.alive)) {
-    const results = [...room.players.values()].map(p => ({name:p.name, finished:p.finished, alive:p.alive, time:p.finishTime ?? null, dist:p.dist})).sort((a,b) => { if(a.finished!==b.finished) return a.finished?-1:1; return (a.time??Infinity)-(b.time??Infinity); });
-    broadcast(room, { type:"race_over", results, winner:results.find(p=>p.finished)?.name || null });
-  }
-
-  return;
-}
-
-      if (!gap) return;
 
       let result;
       player.usedChoices.push(choice);
@@ -285,32 +293,22 @@ if (!gap) {
       } else {
         result = "fall";
         player.recovery--;
-        player.dist = gap.at;
-
-        if (player.recovery < 0) {
-          player.alive = false;
-        }
+        player.dist = gap.at + 20;
+        if (player.recovery < 0) player.alive = false;
       }
 
-      if (player.dist >= 2000) {
+      // After gap four, finish the remaining stretch without asking for a fifth jump.
+      if (player.gapIndex >= room.gaps.length && player.alive) {
         player.dist = 2000;
         player.finished = true;
         player.finishTime = Date.now() - room.startedAt;
       }
 
-      send(ws, {
-        type: "jump_result",
-        result,
-        width: gap.width,
-        recovery: player.recovery,
-        dist: player.dist,
-        usedChoices: player.usedChoices
-      });
-
+      send(ws, { type:"jump_result", result: player.finished ? "finish" : result, width:gap.width, recovery:player.recovery, dist:player.dist, usedChoices:player.usedChoices });
       broadcast(room, roomState(room));
 
       if ([...room.players.values()].every(p => p.finished || !p.alive)) {
-        const results = [...room.players.values()].map(p => ({name:p.name, finished:p.finished, alive:p.alive, time:p.finishTime ?? null, dist:p.dist})).sort((a,b) => { if(a.finished!==b.finished) return a.finished?-1:1; return (a.time??Infinity)-(b.time??Infinity); });
+        const results = [...room.players.values()].map(p => ({name:p.name, finished:p.finished, alive:p.alive, time:p.finishTime ?? null, dist:p.dist})).sort((a,b) => a.finished!==b.finished ? (a.finished?-1:1) : (a.time??Infinity)-(b.time??Infinity));
         broadcast(room, { type:"race_over", results, winner:results.find(p=>p.finished)?.name || null });
       }
     }
