@@ -87,6 +87,7 @@ let lastDistance=0;
 let visualDistance=0;
 let lastFrame=0;
 let lastStepShown=0;
+let lastProgressSent=0;
 let sceneryClock=0;
 let raceStartedAt=0;
 let limbs=[];
@@ -152,9 +153,10 @@ function connect(){
       recovery=2;
       alive=true;
       usedChoices=[];
+      lastProgressSent=0;
       init3D();
-      document.getElementById("controls").classList.remove("hidden");
-      document.getElementById("jumpGuide").classList.remove("hidden");
+      document.getElementById("controls").classList.add("hidden");
+      document.getElementById("jumpGuide").classList.add("hidden");
       document.getElementById("raceStatus").textContent="🏁 Race started!";
       
     }
@@ -241,6 +243,12 @@ function renderJumpButtons(){
 }
 function jump(choice){
   if(!racing||!alive||usedChoices.includes(choice))return;
+  const next=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
+  const at=next?(typeof next==="number"?next:next.at):null;
+  if(at===null||distance<at-28||distance>at+5){
+    document.getElementById("raceStatus").textContent="⏳ Wait for the "+(at||"finish")+" m checkpoint!";
+    return;
+  }
   send({type:"jump",choice});
 }
 
@@ -378,12 +386,23 @@ function animate(){
     const now=performance.now();
     const dt=Math.min((now-(lastFrame||now))/1000,0.05);
     lastFrame=now;
-    if(alive && !document.getElementById("controls").classList.contains("hidden")){
+    if(alive){
       const upcoming=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
       const target=upcoming?(typeof upcoming==="number"?upcoming:upcoming.at):2000;
       if(visualDistance<target-8) visualDistance=Math.min(target-8,visualDistance+dt*12);
       else if(!upcoming) visualDistance=Math.min(2000,visualDistance+dt*12);
       distance=Math.max(distance,visualDistance);
+      const nextCheckpoint=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
+      const checkpointAt=nextCheckpoint?(typeof nextCheckpoint==="number"?nextCheckpoint:nextCheckpoint.at):null;
+      const checkpointReady=checkpointAt!==null && distance>=checkpointAt-28 && distance<=checkpointAt+5;
+      const controls=document.getElementById("controls");
+      const guide=document.getElementById("jumpGuide");
+      if(controls) controls.classList.toggle("hidden",!checkpointReady);
+      if(guide) guide.classList.toggle("hidden",!checkpointReady);
+      if(now-lastProgressSent>150){
+        send({type:"progress",dist:distance});
+        lastProgressSent=now;
+      }
       const whole=Math.floor(distance);
       if(whole>lastStepShown){lastStepShown=whole;updateHUD();}
     }
