@@ -81,7 +81,7 @@ let racing=false,distance=0,recovery=2,alive=true;
 let scene,camera,renderer,car,road;
 let gapObjects=[],roadLines=[];
 let gaps=[];
-let lastDistance=0;
+let lastDistance=0;\nlet visualDistance=0;\nlet lastFrame=0;\nlet lastStepShown=0;
 let sceneryClock=0;
 let limbs=[];
 
@@ -329,7 +329,7 @@ function animate(){
 
   if(racing){
     sceneryClock+=0.22;
-    const movement=distance/10+sceneryClock;
+    const now=performance.now();\n    const dt=Math.min((now-(lastFrame||now))/1000,0.05);\n    lastFrame=now;\n    if(alive && !document.getElementById("controls").classList.contains("hidden")){\n      const upcoming=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);\n      const target=upcoming?(typeof upcoming==="number"?upcoming:upcoming.at):2000;\n      if(visualDistance<target-8) visualDistance=Math.min(target-8,visualDistance+dt*12);\n      else if(!upcoming) visualDistance=Math.min(2000,visualDistance+dt*12);\n      distance=Math.max(distance,visualDistance);\n      const whole=Math.floor(distance);\n      if(whole>lastStepShown){lastStepShown=whole;updateHUD();}\n    }\n    const movement=visualDistance/10+sceneryClock;
 
     // Road moves towards the player
     road.position.z=-110+(movement%7);
