@@ -15,4 +15,7 @@ if(m.type==="start"){if(ws.player.id!==r.hostId)return send(ws,{type:"error",mes
 if(m.type==="jump"){if(!r.started||!p.alive||p.finished)return;let g=r.gaps.find(x=>x.at>p.dist);if(!g)return;let choice=Number(m.choice);if(![3,5,7,9].includes(choice))return;let result=choice===g.width?"nitro":choice>g.width?"skate":"fall";p.dist=g.at+1;if(result==="nitro")p.dist+=70;else if(result==="skate")p.dist+=35;else{p.recovery--;if(p.recovery<0){p.alive=false;p.dist=g.at}}if(p.dist>=2000){p.dist=2000;p.finished=true}send(ws,{type:"jump_result",result,width:g.width,recovery:p.recovery,dist:p.dist});bc(r,state(r));if([...r.players.values()].every(x=>x.finished||!x.alive))bc(r,{type:"race_over"})}
 });
 ws.on("close",()=>leave(ws))});
+app.get("/", (req, res) => {
+  res.send("4 GAP RUSH Server is Running!");
+});
 server.listen(process.env.PORT||3000,()=>console.log("4 GAP RUSH Stage 2 running"));
