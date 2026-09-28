@@ -1,0 +1,212 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>4 GAP RUSH</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101426;color:white;font-family:Arial,sans-serif;text-align:center}
+main{max-width:600px;margin:auto;padding:20px}
+h1{color:#50f6c5;font-size:36px;margin-bottom:5px}
+.panel{background:#1d2540;padding:18px;border-radius:16px;margin:15px 0}
+input,button{padding:13px;border:0;border-radius:9px;font-size:16px;margin:5px}
+input{width:90%;max-width:300px;background:#fff;color:#111}
+button{background:#50f6c5;color:#101426;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.4}
+.small{color:#b9c4e5;font-size:14px}
+#status{color:#50f6c5;min-height:24px}
+#players{padding:0;list-style:none}
+#players li{padding:10px;border-bottom:1px solid #39415d}
+.track{background:#0c1020;border-radius:12px;padding:15px;margin:12px 0}
+.bar{height:16px;background:#303955;border-radius:20px;overflow:hidden}
+#progress{height:100%;width:0;background:#50f6c5;transition:width .2s}
+.choices{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.choices button{padding:15px 5px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+<h1>⚡ 4 GAP RUSH</h1>
+<p class="small">MULTIPLAYER RACING • UP TO 8 PLAYERS</p>
+
+<div class="panel">
+<input id="name" maxlength="18" placeholder="Enter your player name">
+<br>
+<button onclick="createRoom()">CREATE ROOM</button>
+<hr>
+<input id="room" maxlength="6" placeholder="Room code">
+<br>
+<button onclick="joinRoom()">JOIN ROOM</button>
+</div>
+
+<div class="panel">
+<h3 id="roomTitle">Waiting for room...</h3>
+<p id="status">Connecting to game server...</p>
+<ul id="players"></ul>
+<button id="readyBtn" onclick="readyUp()" disabled>READY</button>
+<button id="startBtn" onclick="startRace()" disabled>START RACE</button>
+</div>
+
+<div class="panel">
+<h3>🏁 RACE TRACK</h3>
+<p id="raceStatus">Create or join a room to begin.</p>
+<div class="track">
+<div class="bar"><div id="progress"></div></div>
+<p id="distance">Distance: 0 / 2000</p>
+<p id="recovery">Recovery: 2</p>
+</div>
+<p>Choose your jump power:</p>
+<div class="choices">
+<button onclick="jump(3)" disabled class="jump">3</button>
+<button onclick="jump(5)" disabled class="jump">5</button>
+<button onclick="jump(7)" disabled class="jump">7</button>
+<button onclick="jump(9)" disabled class="jump">9</button>
+</div>
+<p class="small">Match the gap to get Nitro!</p>
+</div>
+</main>
+
+<script>
+let ws, myId=null, isHost=false, isReady=false;
+let racing=false, distance=0, recovery=2, alive=true;
+let gaps=[], nextGap=0;
+
+function connect(){
+  const protocol=location.protocol==="https:"?"wss:":"ws:";
+  ws=new WebSocket(protocol+"//"+location.host);
+
+  ws.onopen=()=>status("Connected to game server");
+  ws.onclose=()=>{
+    status("Disconnected. Refresh the page to reconnect.");
+    setJumpButtons(false);
+  };
+  ws.onerror=()=>status("Connection error");
+  ws.onmessage=(event)=>{
+    let m;
+    try{m=JSON.parse(event.data)}catch{return}
+
+    if(m.type==="joined"){
+      myId=m.id;
+      isHost=m.host;
+      document.getElementById("roomTitle").textContent="Room: "+m.room;
+      document.getElementById("room").value=m.room;
+      status(isHost?"You are the host":"Joined room successfully");
+      document.getElementById("readyBtn").disabled=isHost;
+    }
+
+    if(m.type==="room_state"){
+      document.getElementById("roomTitle").textContent="Room: "+m.roomCode;
+      document.getElementById("players").innerHTML="";
+      const me=m.players.find(p=>p.id===myId);
+      if(me){
+        isReady=me.ready;
+        distance=me.dist;
+        recovery=me.recovery;
+        alive=me.alive;
+        updateTrack();
+      }
+
+      m.players.forEach(p=>{
+        const li=document.createElement("li");
+        li.textContent=p.name+
+          (p.id===m.hostId?" 👑":"")+
+          (p.ready?" ✅":" ⏳")+
+          (p.finished?" 🏁":"")+
+          (!p.alive?" ❌":"");
+        document.getElementById("players").appendChild(li);
+      });
+
+      document.getElementById("startBtn").disabled=
+        !(isHost && m.players.length>0 && m.players.every(p=>p.ready));
+      document.getElementById("readyBtn").textContent=
+        isReady?"CANCEL READY":"READY";
+    }
+
+    if(m.type==="race_start"){
+      racing=true;
+      gaps=m.gaps||[];
+      nextGap=0;
+      document.getElementById("raceStatus").textContent="Race started! Choose your jump.";
+      setJumpButtons(true);
+    }
+
+    if(m.type==="jump_result"){
+      distance=m.dist;
+      recovery=m.recovery;
+      updateTrack();
+      document.getElementById("raceStatus").textContent=
+        m.result==="nitro"?"🚀 PERFECT! NITRO BOOST!":
+        m.result==="skate"?"🛹 Safe jump!":
+        "💥 You fell! Recovery used.";
+    }
+
+    if(m.type==="race_over"){
+      racing=false;
+      setJumpButtons(false);
+      document.getElementById("raceStatus").textContent="🏁 RACE OVER!";
+    }
+
+    if(m.type==="error")status(m.message);
+  };
+}
+
+function status(t){
+  document.getElementById("status").textContent=t;
+}
+
+function send(data){
+  if(ws&&ws.readyState===WebSocket.OPEN)
+    ws.send(JSON.stringify(data));
+  else status("Not connected to server");
+}
+
+function playerName(){
+  return document.getElementById("name").value.trim()||"Player";
+}
+
+function createRoom(){
+  send({type:"create",name:playerName()});
+}
+
+function joinRoom(){
+  const room=document.getElementById("room").value.trim();
+  if(!room)return status("Enter a room code");
+  send({type:"join",room,name:playerName()});
+}
+
+function readyUp(){
+  isReady=!isReady;
+  send({type:"ready",value:isReady});
+}
+
+function startRace(){
+  send({type:"start"});
+}
+
+function jump(choice){
+  if(!racing||!alive)return;
+  send({type:"jump",choice});
+}
+
+function updateTrack(){
+  document.getElementById("progress").style.width=
+    Math.min(100,distance/2000*100)+"%";
+  document.getElementById("distance").textContent=
+    "Distance: "+distance+" / 2000";
+  document.getElementById("recovery").textContent=
+    "Recovery: "+recovery;
+}
+
+function setJumpButtons(enabled){
+  document.querySelectorAll(".jump").forEach(b=>{
+    b.disabled=!enabled;
+  });
+}
+
+connect();
+</script>
+</body>
+</html>
