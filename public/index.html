@@ -79,7 +79,9 @@ let racing=false,distance=0,recovery=2,alive=true;
 let scene,camera,renderer,car,road;
 let gapObjects=[],roadLines=[];
 let gaps=[];
-let lastDistance=0;\nlet sceneryClock=0;\nlet limbs=[];
+let lastDistance=0;
+let sceneryClock=0;
+let limbs=[];
 
 function connect(){
   const protocol=location.protocol==="https:"?"wss:":"ws:";
@@ -305,7 +307,8 @@ function animate(){
   requestAnimationFrame(animate);
 
   if(racing){
-    sceneryClock+=0.22;\n    const movement=distance/10+sceneryClock;
+    sceneryClock+=0.22;
+    const movement=distance/10+sceneryClock;
 
     // Road moves towards the player
     road.position.z=-110+(movement%7);
