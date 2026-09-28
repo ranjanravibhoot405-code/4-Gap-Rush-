@@ -303,7 +303,8 @@ if (!gap) {
         result,
         width: gap.width,
         recovery: player.recovery,
-        dist: player.dist
+        dist: player.dist,
+        usedChoices: player.usedChoices
       });
 
       broadcast(room, roomState(room));
