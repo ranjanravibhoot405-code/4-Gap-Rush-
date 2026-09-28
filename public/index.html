@@ -49,9 +49,13 @@ button:disabled{opacity:.4}
 <button id="readyBtn" onclick="readyUp()" disabled>READY</button>
 <button id="startBtn" onclick="startRace()" disabled>START RACE</button>
 </div>
-
-<div class="panel">
-<h3>🏁 RACE TRACK</h3>
+if(m.type==="race_start"){
+  racing=true;
+  gaps=m.gaps||[];
+  nextGap=0;
+  document.getElementById("raceStatus").textContent="Race started! Choose your jump.";
+  setJumpButtons(true);
+}
 <p id="raceStatus">Create or join a room to begin.</p>
 <div class="track">
 <div class="bar"><div id="progress"></div></div>
