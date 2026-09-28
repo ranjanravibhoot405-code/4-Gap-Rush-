@@ -79,7 +79,7 @@ let racing=false,distance=0,recovery=2,alive=true;
 let scene,camera,renderer,car,road;
 let gapObjects=[],roadLines=[];
 let gaps=[];
-let lastDistance=0;
+let lastDistance=0;\nlet sceneryClock=0;\nlet limbs=[];
 
 function connect(){
   const protocol=location.protocol==="https:"?"wss:":"ws:";
@@ -265,37 +265,23 @@ function init3D(){
   ground.position.set(0,-.2,-100);
   scene.add(ground);
 
-  // Player vehicle
+  // Animated 3D human runner (not a vehicle/object)
   car=new THREE.Group();
-
-  const body=new THREE.Mesh(
-    new THREE.BoxGeometry(1.5,.7,2.5),
-    new THREE.MeshStandardMaterial({color:0xff2020,metalness:.3,roughness:.3})
-  );
-  body.position.y=.8;
-  car.add(body);
-
-  const cabin=new THREE.Mesh(
-    new THREE.BoxGeometry(1.1,.6,1),
-    new THREE.MeshStandardMaterial({color:0x222c45,metalness:.5,roughness:.2})
-  );
-  cabin.position.set(0,1.4,-.1);
-  car.add(cabin);
-
-  for(let x of [-.85,.85]){
-    for(let z of [-.8,.8]){
-      const wheel=new THREE.Mesh(
-        new THREE.CylinderGeometry(.32,.32,.2,16),
-        new THREE.MeshStandardMaterial({color:0x111111})
-      );
-      wheel.rotation.z=Math.PI/2;
-      wheel.position.set(x,.35,z);
-      car.add(wheel);
-    }
+  const skin=new THREE.MeshStandardMaterial({color:0xc8875b,roughness:.8});
+  const shirt=new THREE.MeshStandardMaterial({color:0xff3b30,roughness:.65});
+  const shorts=new THREE.MeshStandardMaterial({color:0x172554,roughness:.8});
+  const shoes=new THREE.MeshStandardMaterial({color:0xf8fafc,roughness:.5});
+  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.38,.72,6,12),shirt); torso.position.y=1.55; car.add(torso);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.27,16,16),skin); head.position.y=2.35; car.add(head);
+  const hair=new THREE.Mesh(new THREE.SphereGeometry(.275,16,8,0,Math.PI*2,0,Math.PI*.55),new THREE.MeshStandardMaterial({color:0x21160f})); hair.position.y=2.48; car.add(hair);
+  const limbs=[];
+  function makeLimb(x,y,len,mat,arm){const pivot=new THREE.Group();pivot.position.set(x,y,0);const limb=new THREE.Mesh(new THREE.CapsuleGeometry(arm?.105:.14,len,4,8),mat);limb.position.y=-len/2;pivot.add(limb);car.add(pivot);return pivot;}
+  for(const side of [-1,1]){
+    const arm=makeLimb(side*.43,1.9,.62,skin,true); limbs.push({part:arm,phase:side===-1?0:Math.PI,arm:true});
+    const leg=makeLimb(side*.2,1.15,.78,shorts,false); limbs.push({part:leg,phase:side===-1?Math.PI:0,arm:false});
+    const shoe=new THREE.Mesh(new THREE.BoxGeometry(.25,.13,.42),shoes);shoe.position.set(side*.2,.12,.12);car.add(shoe);
   }
-
-  car.position.set(0,0,3);
-  scene.add(car);
+  car.position.set(0,0,3); scene.add(car);
 
   // Visible gaps on the road
   gapObjects=[];
@@ -319,7 +305,7 @@ function animate(){
   requestAnimationFrame(animate);
 
   if(racing){
-    const movement=distance/10;
+    sceneryClock+=0.22;\n    const movement=distance/10+sceneryClock;
 
     // Road moves towards the player
     road.position.z=-110+(movement%7);
