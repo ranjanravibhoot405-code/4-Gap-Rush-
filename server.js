@@ -225,6 +225,7 @@ wss.on("connection", ws => {
 
       room.started = true;
       room.startedAt = Date.now();
+      room.players.forEach(p => { p.usedChoices = []; p.gapIndex = 0; p.dist = 0; p.recovery = 2; p.alive = true; p.finished = false; });
 
       return broadcast(room, {
         type: "race_start",
@@ -237,7 +238,14 @@ wss.on("connection", ws => {
     if (m.type === "jump") {
       if (!room.started || !player.alive || player.finished) return;
       
-      const gap = room.gaps.find(g => g.at > player.dist);
+      player.usedChoices = player.usedChoices || [];
+      player.gapIndex = player.gapIndex || 0;
+      const choice = Number(m.choice);
+      const remainingChoices = [3,5,7,9].filter(n => !player.usedChoices.includes(n));
+      if (!remainingChoices.includes(choice)) {
+        return send(ws, { type:"error", message:"That jump option is already used. Remaining: " + remainingChoices.join(", ") });
+      }
+      const gap = room.gaps[player.gapIndex];
 
 // All gaps completed: finish the race
 if (!gap) {
@@ -262,11 +270,11 @@ if (!gap) {
   return;
 }
 
-      const choice = Number(m.choice);
-
-      if (![3, 5, 7, 9].includes(choice)) return;
+      if (!gap) return;
 
       let result;
+      player.usedChoices.push(choice);
+      player.gapIndex++;
 
       if (choice === gap.width) {
         result = "nitro";
