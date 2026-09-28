@@ -7,7 +7,7 @@
 <title>4 GAP RUSH 3D</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#101426;color:white;font-family:Arial;text-align:center}
+body{margin:0;background:#101426;color:white;font-family:Arial;text-align:center} body.racing{overflow:hidden} #lobbyPage{max-width:600px;margin:auto;padding:12px} #racePage{position:fixed;inset:0;z-index:10;background:#080d1b;padding:10px;display:flex;flex-direction:column} #racePage.hidden{display:none} #racePage h2{margin:5px;color:#50f6c5} #racePage #game{height:auto;min-height:0;max-height:none;flex:1;width:100%;} #racePage .raceTop{display:flex;align-items:center;justify-content:space-between;gap:8px} #racePage #controls{bottom:8px} #racePage #controls button{font-size:20px;min-width:62px} #racePage #raceStatus{margin:5px}
 main{max-width:600px;margin:auto;padding:12px}
 h1{color:#50f6c5}
 .panel{background:#1d2540;padding:15px;border-radius:16px;margin:12px 0}
@@ -27,7 +27,7 @@ button:disabled{opacity:.35}
 </style>
 </head>
 <body>
-<main>
+<main id="lobbyPage">
 <h1>⚡ 4 GAP RUSH 3D</h1>
 <p>MULTIPLAYER RACING • UP TO 8 PLAYERS</p>
 
@@ -50,9 +50,13 @@ button:disabled{opacity:.35}
 </div>
 
 <div class="panel">
-<h3>🏁 3D RACE TRACK</h3>
-<p id="raceStatus">Create or join a room to begin.</p>
+<h3>🏁 RACE READY</h3><p>Race starts on its own full-screen page when the host begins.</p>
+</div>
+</main>
 
+<section id="racePage" class="hidden">
+<div class="raceTop"><h2>⚡ 4 GAP RUSH</h2><button onclick="returnLobby()">LOBBY</button></div>
+<p id="raceStatus">Get ready!</p>
 <div id="game">
 <div id="hud">
 <b id="distance">Distance: 0 / 2000</b>
@@ -65,10 +69,8 @@ button:disabled{opacity:.35}
 <button onclick="jump(9)">9</button>
 </div>
 </div>
-
-<p>Choose jump power to cross gaps!</p>
-</div>
-</main>
+<p>Tap your jump power to cross each gap!</p>
+</section>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
@@ -130,6 +132,7 @@ function connect(){
 
     if(m.type==="race_start"){
       racing=true;
+      showRacePage();
       gaps=m.gaps||[400,800,1200,1600];
       distance=0;
       recovery=2;
@@ -137,7 +140,7 @@ function connect(){
       init3D();
       document.getElementById("controls").classList.remove("hidden");
       document.getElementById("raceStatus").textContent="🏁 Race started!";
-      document.getElementById("game").scrollIntoView({behavior:"smooth"});
+      
     }
 
     if(m.type==="jump_result"){
@@ -155,12 +158,17 @@ function connect(){
       racing=false;
       document.getElementById("controls").classList.add("hidden");
       document.getElementById("raceStatus").textContent="🏁 RACE OVER!";
+      document.getElementById("raceStatus").innerHTML += '<br><button onclick="returnLobby()">BACK TO LOBBY</button>';
     }
 
     if(m.type==="error")status(m.message);
   };
 }
 
+function showRacePage(){document.getElementById("lobbyPage").classList.add("hidden");document.getElementById("racePage").classList.remove("hidden");document.body.classList.add("racing");if(location.pathname!=="/race")history.pushState({page:"race"},"","/race");setTimeout(()=>{if(renderer){renderer.setSize(document.getElementById("game").clientWidth,document.getElementById("game").clientHeight);camera.aspect=document.getElementById("game").clientWidth/document.getElementById("game").clientHeight;camera.updateProjectionMatrix();}},80);}
+function returnLobby(){document.getElementById("racePage").classList.add("hidden");document.getElementById("lobbyPage").classList.remove("hidden");document.body.classList.remove("racing");if(location.pathname==="/race")history.pushState({page:"lobby"},"","/");}
+window.addEventListener("popstate",()=>{if(location.pathname==="/race")showRacePage();else returnLobby();});
+if(location.pathname==="/race"){document.getElementById("lobbyPage").classList.add("hidden");document.getElementById("racePage").classList.remove("hidden");document.body.classList.add("racing");}
 function status(t){
   document.getElementById("status").textContent=t;
 }
