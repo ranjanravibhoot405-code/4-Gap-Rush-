@@ -142,6 +142,9 @@ function connect(){
       showRacePage();
       gaps=m.gaps||[400,800,1200,1600];
       distance=0;
+      visualDistance=0;
+      lastFrame=0;
+      lastStepShown=0;
       recovery=2;
       alive=true;
       init3D();
@@ -153,6 +156,8 @@ function connect(){
 
     if(m.type==="jump_result"){
       distance=m.dist;
+      visualDistance=m.dist;
+      lastFrame=0;
       recovery=m.recovery;
       updateHUD();
       document.getElementById("raceStatus").textContent=
