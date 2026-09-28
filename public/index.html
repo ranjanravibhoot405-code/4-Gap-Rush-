@@ -204,7 +204,11 @@ function jump(choice){
 
 function updateHUD(){
   document.getElementById("distance").textContent=
-    "Distance: "+distance+" / 2000";
+    "Distance: "+Math.floor(distance)+" / 2000 m";
+  const nextGap=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
+  const remain=nextGap?(typeof nextGap==="number"?nextGap:nextGap.at)-distance:Math.max(0,2000-distance);
+  const rs=document.getElementById("raceStatus");
+  if(rs && racing && !rs.textContent.includes("FINISHED")) rs.dataset.remaining="Next gap: "+Math.ceil(remain)+" m";
   document.getElementById("recovery").textContent=
     "Recovery: "+recovery;
 }
@@ -284,16 +288,17 @@ function init3D(){
     const shoe=new THREE.Mesh(new THREE.BoxGeometry(.25,.13,.42),shoes);shoe.position.set(side*.2,.12,.12);car.add(shoe);
   }
   car.position.set(0,0,3); scene.add(car);
+  window.runnerLimbs=limbs;
 
   // Visible gaps on the road
   gapObjects=[];
   gaps.forEach((g,i)=>{
     const at=typeof g==="number"?g:g.at;
     const gap=new THREE.Mesh(
-      new THREE.BoxGeometry(11,.15,3),
+      new THREE.BoxGeometry(11,.25,8),
       new THREE.MeshStandardMaterial({color:0x080808})
     );
-    gap.position.set(0,-.02,-at/10);
+    gap.position.set(0,-.12,-at/10);
     scene.add(gap);
     gapObjects.push(gap);
   });
@@ -323,8 +328,11 @@ function animate(){
       gap.visible=(at-distance)>-30&&(at-distance)<100;
     });
 
-    car.position.y=Math.max(0,Math.sin(Date.now()*.01)*.15);
-    car.rotation.z=0;
+    const runT=Date.now()*.012;
+    car.position.y=Math.max(0,Math.sin(runT*2)*.07);
+    car.rotation.z=Math.sin(runT)*.025;
+    (window.runnerLimbs||[]).forEach(({part,phase,arm})=>{part.rotation.x=Math.sin(runT+phase)*(arm?.75:1.0);});
+    updateHUD();
   }
 
   renderer.render(scene,camera);
