@@ -97,6 +97,7 @@ wss.on("connection", ws => {
         code: makeCode(),
         hostId: null,
         started: false,
+        startedAt: null,
         gaps: [400, 800, 1200, 1600].map(at => ({
           at,
           width: [3, 5, 7, 9][Math.floor(Math.random() * 4)]
@@ -223,9 +224,11 @@ wss.on("connection", ws => {
       }
 
       room.started = true;
+      room.startedAt = Date.now();
 
       return broadcast(room, {
         type: "race_start",
+        startedAt: room.startedAt,
         gaps: room.gaps.map(g => g.at)
       });
     }
@@ -240,6 +243,7 @@ wss.on("connection", ws => {
 if (!gap) {
   player.dist = 2000;
   player.finished = true;
+  player.finishTime = Date.now() - room.startedAt;
 
   send(ws, {
     type: "jump_result",
@@ -250,10 +254,9 @@ if (!gap) {
 
   broadcast(room, roomState(room));
 
-  if ([...room.players.values()].every(
-    p => p.finished || !p.alive
-  )) {
-    broadcast(room, { type: "race_over" });
+  if ([...room.players.values()].every(p => p.finished || !p.alive)) {
+    const results = [...room.players.values()].map(p => ({name:p.name, finished:p.finished, alive:p.alive, time:p.finishTime ?? null, dist:p.dist})).sort((a,b) => { if(a.finished!==b.finished) return a.finished?-1:1; return (a.time??Infinity)-(b.time??Infinity); });
+    broadcast(room, { type:"race_over", results, winner:results.find(p=>p.finished)?.name || null });
   }
 
   return;
@@ -284,6 +287,7 @@ if (!gap) {
       if (player.dist >= 2000) {
         player.dist = 2000;
         player.finished = true;
+        player.finishTime = Date.now() - room.startedAt;
       }
 
       send(ws, {
@@ -296,10 +300,9 @@ if (!gap) {
 
       broadcast(room, roomState(room));
 
-      if ([...room.players.values()].every(
-        p => p.finished || !p.alive
-      )) {
-        broadcast(room, { type: "race_over" });
+      if ([...room.players.values()].every(p => p.finished || !p.alive)) {
+        const results = [...room.players.values()].map(p => ({name:p.name, finished:p.finished, alive:p.alive, time:p.finishTime ?? null, dist:p.dist})).sort((a,b) => { if(a.finished!==b.finished) return a.finished?-1:1; return (a.time??Infinity)-(b.time??Infinity); });
+        broadcast(room, { type:"race_over", results, winner:results.find(p=>p.finished)?.name || null });
       }
     }
 
