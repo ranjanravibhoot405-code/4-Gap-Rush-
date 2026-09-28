@@ -232,10 +232,31 @@ wss.on("connection", ws => {
     // JUMP
     if (m.type === "jump") {
       if (!room.started || !player.alive || player.finished) return;
-
+      
       const gap = room.gaps.find(g => g.at > player.dist);
 
-      if (!gap) return;
+// All gaps completed: finish the race
+if (!gap) {
+  player.dist = 2000;
+  player.finished = true;
+
+  send(ws, {
+    type: "jump_result",
+    result: "finish",
+    recovery: player.recovery,
+    dist: player.dist
+  });
+
+  broadcast(room, roomState(room));
+
+  if ([...room.players.values()].every(
+    p => p.finished || !p.alive
+  )) {
+    broadcast(room, { type: "race_over" });
+  }
+
+  return;
+}
 
       const choice = Number(m.choice);
 
