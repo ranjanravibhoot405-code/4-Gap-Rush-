@@ -181,6 +181,14 @@ function connect(){
       results.forEach((p,i)=>{const row=document.createElement("p");row.textContent=(i+1)+". "+p.name+" — "+(p.finished?fmt(p.time):"DNF");row.style.color=i===0&&p.finished?"#50f6c5":"white";table.appendChild(row)});
       box.appendChild(table);
       const back=document.createElement("button");back.textContent="BACK TO LOBBY";back.onclick=returnLobby;box.appendChild(back);
+      // Also show a fixed, high-visibility result overlay for every connected player.
+      let resultOverlay=document.getElementById("raceResultOverlay");
+      if(!resultOverlay){resultOverlay=document.createElement("div");resultOverlay.id="raceResultOverlay";resultOverlay.style.cssText="position:fixed;inset:0;z-index:99999;background:rgba(3,7,18,.96);color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;overflow:auto";document.body.appendChild(resultOverlay);}
+      resultOverlay.innerHTML="";
+      const resultHeading=document.createElement("h1");resultHeading.style.color="#50f6c5";resultHeading.textContent=m.winner?"🏆 WINNER: "+m.winner:"RACE OVER • No finisher";resultOverlay.appendChild(resultHeading);
+      const resultSub=document.createElement("p");resultSub.textContent="FINAL RACE RESULTS";resultOverlay.appendChild(resultSub);
+      results.forEach((p,i)=>{const line=document.createElement("p");line.style.cssText="font-size:20px;margin:8px";line.textContent=(i+1)+". "+p.name+" — "+(p.finished?fmt(p.time):"DNF");resultOverlay.appendChild(line);});
+      const closeResult=document.createElement("button");closeResult.textContent="BACK TO LOBBY";closeResult.onclick=()=>{resultOverlay.remove();returnLobby();};resultOverlay.appendChild(closeResult);
     }
 
     if(m.type==="error")status(m.message);
