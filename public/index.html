@@ -3,109 +3,113 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>4 GAP RUSH</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>4 GAP RUSH 3D</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#101426;color:white;font-family:Arial,sans-serif;text-align:center}
-main{max-width:600px;margin:auto;padding:20px}
-h1{color:#50f6c5;font-size:36px;margin-bottom:5px}
-.panel{background:#1d2540;padding:18px;border-radius:16px;margin:15px 0}
+body{margin:0;background:#101426;color:white;font-family:Arial;text-align:center}
+main{max-width:600px;margin:auto;padding:12px}
+h1{color:#50f6c5}
+.panel{background:#1d2540;padding:15px;border-radius:16px;margin:12px 0}
 input,button{padding:13px;border:0;border-radius:9px;font-size:16px;margin:5px}
-input{width:90%;max-width:300px;background:#fff;color:#111}
-button{background:#50f6c5;color:#101426;font-weight:bold;cursor:pointer}
-button:disabled{opacity:.4}
-.small{color:#b9c4e5;font-size:14px}
-#status{color:#50f6c5;min-height:24px}
-#players{padding:0;list-style:none}
-#players li{padding:10px;border-bottom:1px solid #39415d}
-.track{background:#0c1020;border-radius:12px;padding:15px;margin:12px 0}
-.bar{height:16px;background:#303955;border-radius:20px;overflow:hidden}
-#progress{height:100%;width:0;background:#50f6c5;transition:width .2s}
-.choices{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
-.choices button{padding:15px 5px}
+input{width:90%;max-width:300px}
+button{background:#50f6c5;color:#101426;font-weight:bold}
+button:disabled{opacity:.35}
+#status{color:#50f6c5}
+#players{list-style:none;padding:0}
+#players li{padding:8px;border-bottom:1px solid #39415d}
+#game{height:65vh;min-height:350px;max-height:650px;background:#050914;border-radius:14px;overflow:hidden;position:relative}
+#game canvas{width:100%;height:100%;display:block}
+#hud{position:absolute;top:8px;left:0;right:0;pointer-events:none;text-shadow:0 2px 4px black}
+#controls{position:absolute;bottom:12px;left:0;right:0;display:flex;justify-content:center;gap:6px}
+#controls button{padding:15px 12px;min-width:55px}
 .hidden{display:none}
 </style>
 </head>
 <body>
 <main>
-<h1>⚡ 4 GAP RUSH</h1>
-<p class="small">MULTIPLAYER RACING • UP TO 8 PLAYERS</p>
+<h1>⚡ 4 GAP RUSH 3D</h1>
+<p>MULTIPLAYER RACING • UP TO 8 PLAYERS</p>
 
 <div class="panel">
-<input id="name" maxlength="18" placeholder="Enter your player name">
+<input id="name" placeholder="Player name" value="Ravi Ranjan">
 <br>
 <button onclick="createRoom()">CREATE ROOM</button>
 <hr>
-<input id="room" maxlength="6" placeholder="Room code">
+<input id="room" placeholder="Room code" maxlength="6">
 <br>
 <button onclick="joinRoom()">JOIN ROOM</button>
 </div>
 
 <div class="panel">
-<h3 id="roomTitle">Waiting for room...</h3>
-<p id="status">Connecting to game server...</p>
+<h3 id="roomTitle">Waiting for room</h3>
+<p id="status">Connecting...</p>
 <ul id="players"></ul>
 <button id="readyBtn" onclick="readyUp()" disabled>READY</button>
 <button id="startBtn" onclick="startRace()" disabled>START RACE</button>
 </div>
-<div class="panel" id="racePanel">
-<h3>🏁 RACE TRACK</h3>
+
+<div class="panel">
+<h3>🏁 3D RACE TRACK</h3>
 <p id="raceStatus">Create or join a room to begin.</p>
-<div class="track">
-<div class="bar"><div id="progress"></div></div>
-<p id="distance">Distance: 0 / 2000</p>
+
+<div id="game">
+<div id="hud">
+<b id="distance">Distance: 0 / 2000</b>
 <p id="recovery">Recovery: 2</p>
 </div>
-<p>Choose your jump power:</p>
-<div class="choices">
-<button onclick="jump(3)" disabled class="jump">3</button>
-<button onclick="jump(5)" disabled class="jump">5</button>
-<button onclick="jump(7)" disabled class="jump">7</button>
-<button onclick="jump(9)" disabled class="jump">9</button>
+<div id="controls" class="hidden">
+<button onclick="jump(3)">3</button>
+<button onclick="jump(5)">5</button>
+<button onclick="jump(7)">7</button>
+<button onclick="jump(9)">9</button>
 </div>
-<p class="small">Match the gap to get Nitro!</p>
+</div>
+
+<p>Choose jump power to cross gaps!</p>
 </div>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
-let ws, myId=null, isHost=false, isReady=false;
-let racing=false, distance=0, recovery=2, alive=true;
-let gaps=[], nextGap=0;
+let ws,myId=null,isHost=false,isReady=false;
+let racing=false,distance=0,recovery=2,alive=true;
+let scene,camera,renderer,car,road;
+let gapObjects=[],roadLines=[];
+let gaps=[];
+let lastDistance=0;
 
 function connect(){
   const protocol=location.protocol==="https:"?"wss:":"ws:";
   ws=new WebSocket(protocol+"//"+location.host);
 
   ws.onopen=()=>status("Connected to game server");
-  ws.onclose=()=>{
-    status("Disconnected. Refresh the page to reconnect.");
-    setJumpButtons(false);
-  };
+  ws.onclose=()=>status("Disconnected. Refresh page.");
   ws.onerror=()=>status("Connection error");
-  ws.onmessage=(event)=>{
+
+  ws.onmessage=e=>{
     let m;
-    try{m=JSON.parse(event.data)}catch{return}
+    try{m=JSON.parse(e.data)}catch{return}
 
     if(m.type==="joined"){
       myId=m.id;
       isHost=m.host;
       document.getElementById("roomTitle").textContent="Room: "+m.room;
       document.getElementById("room").value=m.room;
-      status(isHost?"You are the host":"Joined room successfully");
       document.getElementById("readyBtn").disabled=isHost;
+      status(isHost?"You are host":"Joined successfully");
     }
 
     if(m.type==="room_state"){
-      document.getElementById("roomTitle").textContent="Room: "+m.roomCode;
       document.getElementById("players").innerHTML="";
       const me=m.players.find(p=>p.id===myId);
+
       if(me){
         isReady=me.ready;
         distance=me.dist;
         recovery=me.recovery;
         alive=me.alive;
-        updateTrack();
+        updateHUD();
       }
 
       m.players.forEach(p=>{
@@ -119,41 +123,37 @@ function connect(){
       });
 
       document.getElementById("startBtn").disabled=
-        !(isHost && m.players.length>0 && m.players.every(p=>p.ready));
+        !(isHost&&m.players.length>0&&m.players.every(p=>p.ready));
       document.getElementById("readyBtn").textContent=
         isReady?"CANCEL READY":"READY";
     }
 
-if(m.type==="race_start"){
-  racing=true;
-  gaps=m.gaps||[];
-  nextGap=0;
-
-  document.getElementById("raceStatus").textContent =
-    "Race started! Choose your jump.";
-
-  setJumpButtons(true);
-
-  document.getElementById("racePanel")
-    .scrollIntoView({
-      behavior: "smooth",
-      block: "start"
-    });
-}
+    if(m.type==="race_start"){
+      racing=true;
+      gaps=m.gaps||[400,800,1200,1600];
+      distance=0;
+      recovery=2;
+      alive=true;
+      init3D();
+      document.getElementById("controls").classList.remove("hidden");
+      document.getElementById("raceStatus").textContent="🏁 Race started!";
+      document.getElementById("game").scrollIntoView({behavior:"smooth"});
+    }
 
     if(m.type==="jump_result"){
       distance=m.dist;
       recovery=m.recovery;
-      updateTrack();
+      updateHUD();
       document.getElementById("raceStatus").textContent=
         m.result==="nitro"?"🚀 PERFECT! NITRO BOOST!":
         m.result==="skate"?"🛹 Safe jump!":
-        "💥 You fell! Recovery used.";
+        m.result==="finish"?"🏆 FINISHED!":
+        "💥 You fell!";
     }
 
     if(m.type==="race_over"){
       racing=false;
-      setJumpButtons(false);
+      document.getElementById("controls").classList.add("hidden");
       document.getElementById("raceStatus").textContent="🏁 RACE OVER!";
     }
 
@@ -168,53 +168,180 @@ function status(t){
 function send(data){
   if(ws&&ws.readyState===WebSocket.OPEN)
     ws.send(JSON.stringify(data));
-  else status("Not connected to server");
+  else status("Not connected");
 }
 
 function playerName(){
   return document.getElementById("name").value.trim()||"Player";
 }
-
 function createRoom(){
   send({type:"create",name:playerName()});
 }
-
 function joinRoom(){
-  const room=document.getElementById("room").value.trim();
-  if(!room)return status("Enter a room code");
-  send({type:"join",room,name:playerName()});
+  send({type:"join",room:document.getElementById("room").value.trim(),name:playerName()});
 }
-
 function readyUp(){
   isReady=!isReady;
   send({type:"ready",value:isReady});
 }
-
 function startRace(){
   send({type:"start"});
 }
-
 function jump(choice){
   if(!racing||!alive)return;
   send({type:"jump",choice});
 }
 
-function updateTrack(){
-  document.getElementById("progress").style.width=
-    Math.min(100,distance/2000*100)+"%";
+function updateHUD(){
   document.getElementById("distance").textContent=
     "Distance: "+distance+" / 2000";
   document.getElementById("recovery").textContent=
     "Recovery: "+recovery;
 }
 
-function setJumpButtons(enabled){
-  document.querySelectorAll(".jump").forEach(b=>{
-    b.disabled=!enabled;
+function init3D(){
+  const container=document.getElementById("game");
+
+  if(renderer){
+    renderer.dispose();
+    container.innerHTML=
+      '<div id="hud"><b id="distance">Distance: 0 / 2000</b><p id="recovery">Recovery: 2</p></div><div id="controls"><button onclick="jump(3)">3</button><button onclick="jump(5)">5</button><button onclick="jump(7)">7</button><button onclick="jump(9)">9</button></div>';
+  }
+
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x87ceeb);
+  scene.fog=new THREE.Fog(0x87ceeb,30,180);
+
+  camera=new THREE.PerspectiveCamera(
+    70,container.clientWidth/container.clientHeight,0.1,500
+  );
+  camera.position.set(0,5,10);
+  camera.lookAt(0,1,-15);
+
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(container.clientWidth,container.clientHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  container.appendChild(renderer.domElement);
+
+  scene.add(new THREE.HemisphereLight(0xffffff,0x444466,2));
+
+  const sun=new THREE.DirectionalLight(0xffffff,2);
+  sun.position.set(-5,15,10);
+  scene.add(sun);
+
+  // Road
+  const roadGeo=new THREE.PlaneGeometry(12,300);
+  const roadMat=new THREE.MeshStandardMaterial({color:0x333744});
+  road=new THREE.Mesh(roadGeo,roadMat);
+  road.rotation.x=-Math.PI/2;
+  road.position.set(0,-0.1,-110);
+  scene.add(road);
+
+  // Road markings
+  for(let i=0;i<40;i++){
+    const line=new THREE.Mesh(
+      new THREE.BoxGeometry(.15,.03,3),
+      new THREE.MeshStandardMaterial({color:0xffffff})
+    );
+    line.position.set(0,0,-i*7);
+    scene.add(line);
+    roadLines.push(line);
+  }
+
+  // Roadside
+  const ground=new THREE.Mesh(
+    new THREE.PlaneGeometry(300,300),
+    new THREE.MeshStandardMaterial({color:0x25803c})
+  );
+  ground.rotation.x=-Math.PI/2;
+  ground.position.set(0,-.2,-100);
+  scene.add(ground);
+
+  // Player vehicle
+  car=new THREE.Group();
+
+  const body=new THREE.Mesh(
+    new THREE.BoxGeometry(1.5,.7,2.5),
+    new THREE.MeshStandardMaterial({color:0xff2020,metalness:.3,roughness:.3})
+  );
+  body.position.y=.8;
+  car.add(body);
+
+  const cabin=new THREE.Mesh(
+    new THREE.BoxGeometry(1.1,.6,1),
+    new THREE.MeshStandardMaterial({color:0x222c45,metalness:.5,roughness:.2})
+  );
+  cabin.position.set(0,1.4,-.1);
+  car.add(cabin);
+
+  for(let x of [-.85,.85]){
+    for(let z of [-.8,.8]){
+      const wheel=new THREE.Mesh(
+        new THREE.CylinderGeometry(.32,.32,.2,16),
+        new THREE.MeshStandardMaterial({color:0x111111})
+      );
+      wheel.rotation.z=Math.PI/2;
+      wheel.position.set(x,.35,z);
+      car.add(wheel);
+    }
+  }
+
+  car.position.set(0,0,3);
+  scene.add(car);
+
+  // Visible gaps on the road
+  gapObjects=[];
+  gaps.forEach((g,i)=>{
+    const at=typeof g==="number"?g:g.at;
+    const gap=new THREE.Mesh(
+      new THREE.BoxGeometry(11,.15,3),
+      new THREE.MeshStandardMaterial({color:0x080808})
+    );
+    gap.position.set(0,-.02,-at/10);
+    scene.add(gap);
+    gapObjects.push(gap);
   });
+
+  lastDistance=distance;
+  animate();
 }
+
+function animate(){
+  if(!renderer)return;
+  requestAnimationFrame(animate);
+
+  if(racing){
+    const movement=distance/10;
+
+    // Road moves towards the player
+    road.position.z=-110+(movement%7);
+
+    roadLines.forEach((line,i)=>{
+      line.position.z=3-((i*7+movement)%280);
+    });
+
+    gapObjects.forEach((gap,i)=>{
+      const at=typeof gaps[i]==="number"?gaps[i]:gaps[i].at;
+      gap.position.z=3-(at-distance)/10;
+      gap.visible=(at-distance)>-30&&(at-distance)<100;
+    });
+
+    car.position.y=Math.max(0,Math.sin(Date.now()*.01)*.15);
+    car.rotation.z=0;
+  }
+
+  renderer.render(scene,camera);
+}
+
+window.addEventListener("resize",()=>{
+  if(!renderer)return;
+  const c=document.getElementById("game");
+  camera.aspect=c.clientWidth/c.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(c.clientWidth,c.clientHeight);
+});
 
 connect();
 </script>
 </body>
-  </html>
+</html>
