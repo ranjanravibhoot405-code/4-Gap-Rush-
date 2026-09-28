@@ -124,13 +124,22 @@ function connect(){
         isReady?"CANCEL READY":"READY";
     }
 
-    if(m.type==="race_start"){
-      racing=true;
-      gaps=m.gaps||[];
-      nextGap=0;
-      document.getElementById("raceStatus").textContent="Race started! Choose your jump.";
-      setJumpButtons(true);
-    }
+if(m.type==="race_start"){
+  racing=true;
+  gaps=m.gaps||[];
+  nextGap=0;
+
+  document.getElementById("raceStatus").textContent =
+    "Race started! Choose your jump.";
+
+  setJumpButtons(true);
+
+  document.getElementById("racePanel")
+    .scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+}
 
     if(m.type==="jump_result"){
       distance=m.dist;
