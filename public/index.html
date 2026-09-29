@@ -364,6 +364,81 @@ function init3D(){
     scene.add(ground);
   }
 
+  // Detailed roadside environment: textured terrain, distant hills, trees,
+  // shrubs, boulders and roadside posts. Keep meshes low-poly for mobile.
+  const sceneryItems=[];
+  const grassCanvas=document.createElement("canvas");grassCanvas.width=256;grassCanvas.height=256;
+  const gc=grassCanvas.getContext("2d");gc.fillStyle="#496f36";gc.fillRect(0,0,256,256);
+  for(let n=0;n<3200;n++){const shade=35+Math.random()*65;gc.fillStyle="rgba("+Math.floor(shade*.65)+","+Math.floor(shade)+","+Math.floor(shade*.45)+",.35)";gc.fillRect(Math.random()*256,Math.random()*256,1+Math.random()*3,2+Math.random()*5);}
+  const grassTex=new THREE.CanvasTexture(grassCanvas);grassTex.wrapS=grassTex.wrapT=THREE.RepeatWrapping;grassTex.repeat.set(10,28);
+  groundMat.map=grassTex;groundMat.color.set(0xffffff);groundMat.needsUpdate=true;
+
+  // Layered distant hills add a natural horizon beyond the roadside.
+  const hillMats=[0x526f4a,0x607b52,0x74845a].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1}));
+  for(let side of [-1,1]){
+    for(let j=0;j<7;j++){
+      const hill=new THREE.Mesh(new THREE.IcosahedronGeometry(1,1),hillMats[j%hillMats.length]);
+      hill.scale.set(24+Math.random()*22,9+Math.random()*17,13+Math.random()*12);
+      hill.position.set(side*(47+j*13),-2+hill.scale.y*.42,-115-j*17);
+      hill.rotation.y=Math.random()*Math.PI;
+      scene.add(hill);
+    }
+  }
+
+  const trunkMat=new THREE.MeshStandardMaterial({color:0x59402b,roughness:1});
+  const leafMats=[0x315c35,0x3d713d,0x527f43,0x294e31].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1}));
+  const rockMats=[0x77786f,0x5d6669,0x8b806d].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1}));
+  const shrubMat=new THREE.MeshStandardMaterial({color:0x426b36,roughness:1});
+  const treeTrunkGeo=new THREE.CylinderGeometry(.18,.3,2.7,6);
+  const treeLeafGeo=new THREE.ConeGeometry(1.35,2.8,7);
+  const shrubGeo=new THREE.DodecahedronGeometry(1,0);
+  const rockGeo=new THREE.DodecahedronGeometry(1,0);
+  const postMat=new THREE.MeshStandardMaterial({color:0xd6d0b6,roughness:.8});
+  for(let side of [-1,1]){
+    // Natural clusters on both sides, staggered so they don't form a rigid wall.
+    for(let i=0;i<25;i++){
+      const z=-285+i*12+Math.random()*5;
+      const x=side*(9+Math.random()*24);
+      const group=new THREE.Group();
+      const trunk=new THREE.Mesh(treeTrunkGeo,trunkMat);trunk.position.y=1.25;trunk.castShadow=true;group.add(trunk);
+      const tiers=2+(Math.random()>.45?1:0);
+      for(let t=0;t<tiers;t++){
+        const crown=new THREE.Mesh(treeLeafGeo,leafMats[Math.floor(Math.random()*leafMats.length)]);
+        const size=1.0+Math.random()*.45;crown.scale.set(size,1+Math.random()*.35,size);
+        crown.position.set((Math.random()-.5)*.22,2.1+t*1.05,(Math.random()-.5)*.2);
+        crown.castShadow=true;group.add(crown);
+      }
+      group.scale.setScalar(.75+Math.random()*.85);
+      group.position.set(x,-.15,z);group.rotation.y=Math.random()*Math.PI;
+      scene.add(group);sceneryItems.push({obj:group,baseZ:z,baseX:x,side});
+      // Small undergrowth around some tree trunks.
+      if(i%2===0){
+        const bush=new THREE.Mesh(shrubGeo,shrubMat);bush.scale.set(1.1,.55,.8);
+        const bx=side*(7+Math.random()*27);bush.position.set(bx,.35,z-2);
+        scene.add(bush);sceneryItems.push({obj:bush,baseZ:z-2,baseX:bx,side});
+      }
+    }
+    // Gravel and boulders along the shoulders.
+    for(let i=0;i<35;i++){
+      const z=-295+i*9+Math.random()*4;
+      const x=side*(6.5+Math.random()*7);
+      const rockObj=new THREE.Mesh(rockGeo,rockMats[Math.floor(Math.random()*rockMats.length)]);
+      const sc=.18+Math.random()*.65;rockObj.scale.set(sc*1.4,sc,sc);
+      rockObj.position.set(x,sc*.45,z);rockObj.rotation.set(Math.random(),Math.random()*3,Math.random());
+      rockObj.castShadow=true;scene.add(rockObj);sceneryItems.push({obj:rockObj,baseZ:z,baseX:x,side});
+    }
+    // Repeating roadside marker posts give the track scale and speed cues.
+    for(let i=0;i<20;i++){
+      const z=-290+i*15;
+      const post=new THREE.Group();
+      const pole=new THREE.Mesh(new THREE.BoxGeometry(.12,.85,.12),postMat);pole.position.y=.42;post.add(pole);
+      const reflector=new THREE.Mesh(new THREE.BoxGeometry(.14,.16,.04),new THREE.MeshStandardMaterial({color:0xff5b43,emissive:0x331008}));
+      reflector.position.set(0,.68,.08);post.add(reflector);
+      const px=side*6.9;post.position.set(px,0,z);scene.add(post);
+      sceneryItems.push({obj:post,baseZ:z,baseX:px,side});
+    }
+  }
+
   // Animated 3D human runner (not a vehicle/object)
   car=new THREE.Group();
   const chosen=document.getElementById("character")?.value||"nobita";
@@ -477,6 +552,13 @@ function animate(){
       if(whole>lastStepShown){lastStepShown=whole;updateHUD();}
     }
     const movement=visualDistance/10+sceneryClock;
+
+    // Move and recycle roadside props toward the runner as distance advances.
+    // This creates forward travel while keeping a finite, mobile-friendly scene.
+    sceneryItems.forEach(item=>{
+      const wrapped=((item.baseZ+distance/10+300)%315)-300;
+      item.obj.position.z=wrapped;
+    });
 
     // Road moves towards the player
     road.position.z=distance/10;
