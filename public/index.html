@@ -608,7 +608,7 @@ function animate(){
       fallSequence.remaining-=dt;
       if(fallSequence.phase==="fall"&&fallSequence.remaining<=0){
         fallSequence.phase="bottle";fallSequence.remaining=2.0;
-        document.getElementById("recoveryAction").innerHTML="🧪✨<br><b>USING RECOVERY BOTTLE</b><br><small style="font-size:15px">Recovery: "+recovery+" • Reviving...</small>";
+        document.getElementById("recoveryAction").innerHTML="🧪✨<br><b>USING RECOVERY BOTTLE</b><br><small style=\'font-size:15px\'>Recovery: "+recovery+" • Reviving...</small>";
         if(car){car.position.y=-1.9;car.rotation.z=Math.PI*1.5;}
       }else if(fallSequence.phase==="bottle"&&fallSequence.remaining<=0){
         fallSequence=null;document.getElementById("recoveryAction").classList.add("hidden");
