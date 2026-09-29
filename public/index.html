@@ -482,7 +482,7 @@ function animate(){
     });
 
     const runT=Date.now()*.009;
-    if(humanMixer) humanMixer.update(Math.min(0.05,Math.max(0,(now-(lastFrame||now))/1000)));
+    if(humanMixer) humanMixer.update(dt);
     if(car){car.position.y=Math.max(0,Math.sin(runT*2)*.035);car.rotation.z=Math.sin(runT)*.012;}
     if(!humanMixer)(window.runnerLimbs||[]).forEach(({part,phase,arm})=>{part.rotation.x=Math.sin(runT+phase)*(arm?.42:.62);});
     updateHUD();
