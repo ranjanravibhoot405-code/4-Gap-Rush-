@@ -383,7 +383,9 @@ function init3D(){
   const grassCanvas=document.createElement("canvas");grassCanvas.width=512;grassCanvas.height=512;
   const gc=grassCanvas.getContext("2d");gc.fillStyle="#526b3c";gc.fillRect(0,0,512,512);
   for(let n=0;n<19000;n++){const shade=30+Math.random()*100;gc.fillStyle="rgba("+Math.floor(shade*.72)+","+Math.floor(shade)+","+Math.floor(shade*.48)+","+(0.08+Math.random()*.24)+")";gc.beginPath();gc.ellipse(Math.random()*512,Math.random()*512,.4+Math.random()*1.5,1+Math.random()*4,Math.random()*3,0,Math.PI*2);gc.fill();}
-  const grassTex=new THREE.CanvasTexture(grassCanvas);grassTex.colorSpace=THREE.SRGBColorSpace;grassTex.wrapS=grassTex.wrapT=THREE.RepeatWrapping;grassTex.repeat.set(18,48);\n  // Load a photographic grass albedo when online; retain detailed procedural fallback.\n  new THREE.TextureLoader().load("https://threejs.org/examples/textures/terrain/grasslight-big.jpg",tex=>{tex.colorSpace=THREE.SRGBColorSpace;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(18,48);groundMat.map=tex;groundMat.needsUpdate=true;},undefined,()=>{});
+  const grassTex=new THREE.CanvasTexture(grassCanvas);grassTex.colorSpace=THREE.SRGBColorSpace;grassTex.wrapS=grassTex.wrapT=THREE.RepeatWrapping;grassTex.repeat.set(18,48);
+  // Load a photographic grass albedo when online; retain detailed procedural fallback.
+  new THREE.TextureLoader().load("https://threejs.org/examples/textures/terrain/grasslight-big.jpg",tex=>{tex.colorSpace=THREE.SRGBColorSpace;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(18,48);groundMat.map=tex;groundMat.needsUpdate=true;},undefined,()=>{});
   groundMat.map=grassTex;groundMat.color.set(0xffffff);groundMat.needsUpdate=true;
 
   // Distant rolling ridgelines built as irregular terrain meshes, not floating rocks.
@@ -397,7 +399,8 @@ function init3D(){
           const x=(ix/cols-.5)*width;
           const z=(iz/rows-.5)*depth;
           const envelope=Math.sin(ix/cols*Math.PI);
-          const peaks=(Math.sin(ix*.31+ridge*2.1)*.5+Math.cos(ix*.17+ridge)*.5+Math.sin(iz*.8+ix*.11)*.18);\n          const y=1+Math.max(0,envelope*(8+ridge*4+peaks*10))*(iz===0||iz===rows?.25:1)+Math.sin(iz*.45+ix*.21+ridge)*.28;
+          const peaks=(Math.sin(ix*.31+ridge*2.1)*.5+Math.cos(ix*.17+ridge)*.5+Math.sin(iz*.8+ix*.11)*.18);
+          const y=1+Math.max(0,envelope*(8+ridge*4+peaks*10))*((iz===0||iz===rows)?0.25:1)+Math.sin(iz*.45+ix*.21+ridge)*.28;
           verts.push(x,y,z);
           if(ix<cols&&iz<rows){const a=iz*(cols+1)+ix,b=a+1,d=a+cols+1,e=d+1;indices.push(a,d,b,b,d,e);}
         }
