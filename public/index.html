@@ -540,12 +540,12 @@ function init3D(){
     const at=typeof g==="number"?g:g.at;
     const ravine=new THREE.Group();
     // Dark floor, far below the road: this is a dry chasm, not a blue surface.
-    const floor=new THREE.Mesh(new THREE.BoxGeometry(12.4,.35,9.8),cliffDarkMat);
-    floor.position.set(0,-4.3,0);floor.receiveShadow=true;ravine.add(floor);
+    const floor=new THREE.Mesh(new THREE.BoxGeometry(19,.7,15.5),cliffDarkMat);
+    floor.position.set(0,-1.2,0);floor.receiveShadow=true;ravine.add(floor);
     // Rough cut-earth walls on both sides and both ends of the opening.
     for(const side of [-1,1]){
-      const wall=new THREE.Mesh(new THREE.BoxGeometry(.85,4.5,9.8),cliffMat);
-      wall.position.set(side*5.9,-2.05,0);wall.rotation.z=side*.08;wall.receiveShadow=true;ravine.add(wall);
+      const wall=new THREE.Mesh(new THREE.BoxGeometry(1.2,5.8,15.5),cliffMat);
+      wall.position.set(side*6.1,-2.25,0);wall.rotation.z=side*.08;wall.receiveShadow=true;ravine.add(wall);
       for(let n=0;n<16;n++){
         const boulder=new THREE.Mesh(new THREE.DodecahedronGeometry(.25+Math.random()*.65,0),rubbleMats[Math.floor(Math.random()*rubbleMats.length)]);
         boulder.scale.set(1.2,.7,.8);boulder.position.set(side*(5.1+Math.random()*.9),-1.0-Math.random()*3.1,-4.3+Math.random()*8.6);boulder.rotation.set(Math.random(),Math.random()*3,Math.random());boulder.castShadow=true;ravine.add(boulder);
