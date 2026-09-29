@@ -61,6 +61,7 @@ button:disabled{opacity:.35}
 <div id="game">
 <div id="hud">
 <b id="distance">Distance: 0 / 2000</b>
+<p id="raceTimer" style="font-size:20px;font-weight:bold;color:#ffd600;margin:5px">TIME: 00:00.00</p>
 <p id="recovery">Recovery: 2</p>
 <p id="nextGapHud">NEXT GAP: 400 m</p>
 </div>
@@ -254,6 +255,8 @@ function jump(choice){
 }
 
 function updateHUD(){
+  const timer=document.getElementById("raceTimer");
+  if(timer && raceStartedAt){const elapsed=Math.max(0,performance.now()-raceStartedAt);const mins=Math.floor(elapsed/60000);const secs=((elapsed%60000)/1000).toFixed(2);timer.textContent="TIME: "+String(mins).padStart(2,"0")+":"+secs.padStart(5,"0");}
   document.getElementById("distance").textContent=
     "Distance: "+Math.floor(distance)+" / 2000 m";
   const nextGap=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
@@ -281,7 +284,7 @@ function init3D(){
   if(renderer){
     renderer.dispose();
     container.innerHTML=
-      '<div id="hud"><b id="distance">Distance: 0 / 2000</b><p id="recovery">Recovery: 2</p><p id="nextGapHud">NEXT GAP: 400 m</p></div><div id="jumpGuide"><b id="pitTitle">⚠️ BIG PIT AHEAD</b><small id="pitInfo">Choose jump distance</small></div><div id="controls"></div>';
+      '<div id="hud"><b id="distance">Distance: 0 / 2000</b><p id="raceTimer" style="font-size:20px;font-weight:bold;color:#ffd600;margin:5px">TIME: 00:00.00</p><p id="recovery">Recovery: 2</p><p id="nextGapHud">NEXT GAP: 400 m</p></div><div id="jumpGuide"><b id="pitTitle">⚠️ BIG PIT AHEAD</b><small id="pitInfo">Choose jump distance</small></div><div id="controls"></div>';
   }
 
   scene=new THREE.Scene();
