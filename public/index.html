@@ -93,6 +93,7 @@ let animationFrameId=0;
 let sceneryClock=0;
 let raceStartedAt=0;
 let limbs=[];
+let humanMixer=null;
 
 function connect(){
   const protocol=location.protocol==="https:"?"wss:":"ws:";
@@ -385,6 +386,29 @@ function init3D(){
   }
   car.position.set(0,0,3); scene.add(car);
   window.runnerLimbs=limbs;
+  // Load a rigged, animated 3D human (Three.js Soldier sample). Keep the existing
+  // runner as a visible fallback until the model has loaded.
+  import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js")
+    .then(({GLTFLoader})=>{
+      const loader=new GLTFLoader();
+      loader.load("https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb",gltf=>{
+        if(!scene||!racing)return;
+        const oldRunner=car;
+        const human=gltf.scene;
+        human.scale.setScalar(1.12);
+        human.position.set(0,0,3);
+        human.rotation.y=Math.PI;
+        human.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+        scene.remove(oldRunner);
+        car=human;
+        scene.add(car);
+        if(gltf.animations&&gltf.animations.length){
+          humanMixer=new THREE.AnimationMixer(human);
+          const runClip=gltf.animations.find(a=>/run/i.test(a.name))||gltf.animations[0];
+          humanMixer.clipAction(runClip).play();
+        }
+      },undefined,err=>console.warn("Human model failed to load; using fallback runner.",err));
+    }).catch(err=>console.warn("3D human loader unavailable; using fallback runner.",err));
 
   // Real river crossings with textured water, rocky banks and warning strips
   gapObjects=[];
@@ -458,9 +482,9 @@ function animate(){
     });
 
     const runT=Date.now()*.009;
-    car.position.y=Math.max(0,Math.sin(runT*2)*.035);
-    car.rotation.z=Math.sin(runT)*.012;
-    (window.runnerLimbs||[]).forEach(({part,phase,arm})=>{part.rotation.x=Math.sin(runT+phase)*(arm?.42:.62);});
+    if(humanMixer) humanMixer.update(Math.min(0.05,Math.max(0,(now-(lastFrame||now))/1000)));
+    if(car){car.position.y=Math.max(0,Math.sin(runT*2)*.035);car.rotation.z=Math.sin(runT)*.012;}
+    if(!humanMixer)(window.runnerLimbs||[]).forEach(({part,phase,arm})=>{part.rotation.x=Math.sin(runT+phase)*(arm?.42:.62);});
     updateHUD();
   }
 
