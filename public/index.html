@@ -98,6 +98,8 @@ let humanMixer=null;
 let sceneryItems=[];
 let fallTimer=0;
 let jumpTimer=0;
+let fallSequence=null;
+let recoveryResumeAt=null;
 
 function connect(){
   const protocol=location.protocol==="https:"?"wss:":"ws:";
@@ -169,20 +171,28 @@ function connect(){
     }
 
     if(m.type==="jump_result"){
-      distance=m.dist;
-      visualDistance=m.dist;
-      lastFrame=0;
       recovery=m.recovery;
       if(Array.isArray(m.usedChoices)) usedChoices=m.usedChoices;
-      if(m.result==="fall"){fallTimer=1.15;jumpTimer=0;}
-      else if(m.result==="nitro"||m.result==="skate"){jumpTimer=0.8;fallTimer=0;}
-      renderJumpButtons();
+      if(m.result==="fall"){
+        const hitGap=gaps.find(g=>(typeof g==="number"?g:g.at)>=distance-35);
+        const pitAt=hitGap?(typeof hitGap==="number"?hitGap:hitGap.at):distance;
+        distance=visualDistance=pitAt;
+        fallTimer=1.15;jumpTimer=0;
+        recoveryResumeAt=m.dist;
+        fallSequence={phase:"fall",remaining:1.15};
+        let panel=document.getElementById("recoveryAction");
+        if(!panel){panel=document.createElement("div");panel.id="recoveryAction";panel.style.cssText="position:absolute;z-index:8;left:50%;top:48%;transform:translate(-50%,-50%);background:rgba(4,10,25,.96);border:3px solid #50f6c5;border-radius:18px;padding:20px 28px;font-size:25px;line-height:1.5;min-width:240px;box-shadow:0 0 30px #000;text-align:center";document.getElementById("game").appendChild(panel);}
+        panel.innerHTML="🧍‍♂️⬇️<br><b>FELL INTO THE GAP!</b>";panel.classList.remove("hidden");
+        document.getElementById("raceStatus").textContent="💥 Fell into the pit!";
+        document.getElementById("controls").classList.add("hidden");
+        document.getElementById("jumpGuide").classList.add("hidden");
+      } else {
+        distance=m.dist;visualDistance=m.dist;lastFrame=0;fallTimer=0;
+        if(m.result==="nitro"||m.result==="skate")jumpTimer=0.8;
+        renderJumpButtons();
+        document.getElementById("raceStatus").textContent=m.result==="nitro"?"🚀 PERFECT! NITRO BOOST!":m.result==="skate"?"🛹 Safe jump!":m.result==="finish"?"🏆 FINISHED!":"";
+      }
       updateHUD();
-      document.getElementById("raceStatus").textContent=
-        m.result==="nitro"?"🚀 PERFECT! NITRO BOOST!":
-        m.result==="skate"?"🛹 Safe jump!":
-        m.result==="finish"?"🏆 FINISHED!":
-        "💥 You fell!";
     }
 
     if(m.type==="race_over"){
@@ -594,7 +604,21 @@ function animate(){
     const now=performance.now();
     const dt=Math.min((now-(lastFrame||now))/1000,0.05);
     lastFrame=now;
-    if(alive){
+    if(fallSequence){
+      fallSequence.remaining-=dt;
+      if(fallSequence.phase==="fall"&&fallSequence.remaining<=0){
+        fallSequence.phase="bottle";fallSequence.remaining=2.0;
+        document.getElementById("recoveryAction").innerHTML="🧪✨<br><b>USING RECOVERY BOTTLE</b><br><small style="font-size:15px">Recovery: "+recovery+" • Reviving...</small>";
+        if(car){car.position.y=-1.9;car.rotation.z=Math.PI*1.5;}
+      }else if(fallSequence.phase==="bottle"&&fallSequence.remaining<=0){
+        fallSequence=null;document.getElementById("recoveryAction").classList.add("hidden");
+        if(Number.isFinite(recoveryResumeAt)){distance=visualDistance=recoveryResumeAt;}
+        recoveryResumeAt=null;lastFrame=0;
+        if(car){car.position.set(0,0,3);car.rotation.set(0,0,0);}
+        document.getElementById("raceStatus").textContent="🏃 RECOVERED! RACE RESUMED!";
+      }
+    }
+    if(alive&&!fallSequence){
       const upcoming=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
       const target=upcoming?(typeof upcoming==="number"?upcoming:upcoming.at):2000;
       if(visualDistance<target-8) visualDistance=Math.min(target-8,visualDistance+dt*12);
@@ -645,7 +669,7 @@ function animate(){
 
     const runT=Date.now()*.009;
     if(humanMixer) humanMixer.update(dt);
-    if(car){
+    if(car&&!fallSequence){
       const baseY=Math.max(0,Math.sin(runT*2)*.035);
       if(fallTimer>0){
         fallTimer=Math.max(0,fallTimer-dt);
@@ -665,7 +689,7 @@ function animate(){
         car.rotation.x=0;
       }
     }
-    if(!humanMixer && fallTimer<=0)(window.runnerLimbs||[]).forEach(({part,phase,arm})=>{part.rotation.x=Math.sin(runT+phase)*(arm?.42:.62);});
+    if(!humanMixer && fallTimer<=0 && !fallSequence)(window.runnerLimbs||[]).forEach(({part,phase,arm})=>{part.rotation.x=Math.sin(runT+phase)*(arm?.42:.62);});
     updateHUD();
   }
 
