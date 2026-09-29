@@ -302,14 +302,17 @@ function init3D(){
 
   renderer=new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(container.clientWidth,container.clientHeight);
-  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=1.12;
   renderer.shadowMap.enabled=true;
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
 
-  scene.add(new THREE.HemisphereLight(0xffffff,0x444466,2));
+  scene.add(new THREE.HemisphereLight(0xddeeff,0x59634b,1.45));
 
-  const sun=new THREE.DirectionalLight(0xffffff,2);
+  const sun=new THREE.DirectionalLight(0xfff1d6,3.1);
   sun.position.set(-5,15,10);
   scene.add(sun);
   sun.castShadow=true;
@@ -374,58 +377,87 @@ function init3D(){
   const grassTex=new THREE.CanvasTexture(grassCanvas);grassTex.wrapS=grassTex.wrapT=THREE.RepeatWrapping;grassTex.repeat.set(10,28);
   groundMat.map=grassTex;groundMat.color.set(0xffffff);groundMat.needsUpdate=true;
 
-  // Layered distant hills add a natural horizon beyond the roadside.
-  const hillMats=[0x526f4a,0x607b52,0x74845a].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1}));
+  // Distant rolling ridgelines built as irregular terrain meshes, not floating rocks.
+  const hillMats=[0x49684b,0x587452,0x6d805e].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1,flatShading:false}));
   for(let side of [-1,1]){
-    for(let j=0;j<7;j++){
-      const hill=new THREE.Mesh(new THREE.IcosahedronGeometry(1,1),hillMats[j%hillMats.length]);
-      hill.scale.set(24+Math.random()*22,9+Math.random()*17,13+Math.random()*12);
-      hill.position.set(side*(47+j*13),-2+hill.scale.y*.42,-115-j*17);
-      hill.rotation.y=Math.random()*Math.PI;
-      scene.add(hill);
+    for(let ridge=0;ridge<3;ridge++){
+      const cols=34,rows=10,verts=[],indices=[];
+      const width=90+ridge*32,depth=105+ridge*28;
+      for(let iz=0;iz<=rows;iz++){
+        for(let ix=0;ix<=cols;ix++){
+          const x=(ix/cols-.5)*width;
+          const z=(iz/rows-.5)*depth;
+          const envelope=Math.sin(ix/cols*Math.PI);
+          const peaks=(Math.sin(ix*.51+ridge*2.1)*.5+Math.cos(ix*.23+ridge)*.5);
+          const y=1+Math.max(0,envelope*(7+ridge*3+peaks*8))*(iz===0||iz===rows?.25:1);
+          verts.push(x,y,z);
+          if(ix<cols&&iz<rows){const a=iz*(cols+1)+ix,b=a+1,d=a+cols+1,e=d+1;indices.push(a,d,b,b,d,e);}
+        }
+      }
+      const geo=new THREE.BufferGeometry();
+      geo.setAttribute("position",new THREE.Float32BufferAttribute(verts,3));geo.setIndex(indices);geo.computeVertexNormals();
+      const ridgeMesh=new THREE.Mesh(geo,hillMats[ridge]);
+      ridgeMesh.position.set(side*(64+ridge*35),-1,-135-ridge*65);
+      ridgeMesh.scale.set(1,1.3,1);scene.add(ridgeMesh);
     }
   }
 
-  const trunkMat=new THREE.MeshStandardMaterial({color:0x59402b,roughness:1});
-  const leafMats=[0x315c35,0x3d713d,0x527f43,0x294e31].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1}));
-  const rockMats=[0x77786f,0x5d6669,0x8b806d].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1}));
-  const shrubMat=new THREE.MeshStandardMaterial({color:0x426b36,roughness:1});
-  const treeTrunkGeo=new THREE.CylinderGeometry(.18,.3,2.7,6);
-  const treeLeafGeo=new THREE.ConeGeometry(1.35,2.8,7);
-  const shrubGeo=new THREE.DodecahedronGeometry(1,0);
-  const rockGeo=new THREE.DodecahedronGeometry(1,0);
-  const postMat=new THREE.MeshStandardMaterial({color:0xd6d0b6,roughness:.8});
+  const trunkMat=new THREE.MeshStandardMaterial({color:0x493426,roughness:.94});
+  const leafMats=[0x244b2d,0x315f36,0x426f3b,0x527b45,0x1e4228].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.96}));
+  const rockMats=[0x77786f,0x5d6669,0x8b806d].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1,flatShading:true}));
+  const shrubMat=new THREE.MeshStandardMaterial({color:0x365c30,roughness:1});
+  const treeTrunkGeo=new THREE.CylinderGeometry(.13,.32,3.6,9);
+  const branchGeo=new THREE.CylinderGeometry(.055,.11,1.55,7);
+  const canopyGeo=new THREE.SphereGeometry(1,12,10);
+  const shrubGeo=new THREE.IcosahedronGeometry(1,1);
+  const rockGeo=new THREE.DodecahedronGeometry(1,1);
+  const postMat=new THREE.MeshStandardMaterial({color:0xc8c5b9,roughness:.8});
   for(let side of [-1,1]){
-    // Natural clusters on both sides, staggered so they don't form a rigid wall.
-    for(let i=0;i<25;i++){
-      const z=-285+i*12+Math.random()*5;
-      const x=side*(9+Math.random()*24);
+    // Broadleaf trees with branching trunks and irregular overlapping crowns.
+    // The clustered foliage avoids the repeated Christmas-tree silhouette.
+    for(let i=0;i<31;i++){
+      const z=-285+i*10+Math.random()*7;
+      const x=side*(10+Math.random()*32);
       const group=new THREE.Group();
-      const trunk=new THREE.Mesh(treeTrunkGeo,trunkMat);trunk.position.y=1.25;trunk.castShadow=true;group.add(trunk);
-      const tiers=2+(Math.random()>.45?1:0);
-      for(let t=0;t<tiers;t++){
-        const crown=new THREE.Mesh(treeLeafGeo,leafMats[Math.floor(Math.random()*leafMats.length)]);
-        const size=1.0+Math.random()*.45;crown.scale.set(size,1+Math.random()*.35,size);
-        crown.position.set((Math.random()-.5)*.22,2.1+t*1.05,(Math.random()-.5)*.2);
+      const height=3.2+Math.random()*2.7;
+      const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.12,.28,height,9),trunkMat);
+      trunk.position.y=height/2;trunk.castShadow=true;group.add(trunk);
+      const crownCount=7+Math.floor(Math.random()*7);
+      for(let t=0;t<crownCount;t++){
+        const crown=new THREE.Mesh(canopyGeo,leafMats[Math.floor(Math.random()*leafMats.length)]);
+        const s=.7+Math.random()*1.0;
+        crown.scale.set(s*(.9+Math.random()*.45),s*(.7+Math.random()*.5),s*(.85+Math.random()*.5));
+        crown.position.set((Math.random()-.5)*2.4,height*.62+Math.random()*2.0,(Math.random()-.5)*2.2);
         crown.castShadow=true;group.add(crown);
       }
-      group.scale.setScalar(.75+Math.random()*.85);
+      for(let b=0;b<3;b++){
+        const branch=new THREE.Mesh(branchGeo,trunkMat);
+        branch.position.set((Math.random()-.5)*.6,height*.55+Math.random()*.6,0);
+        branch.rotation.z=(Math.random()-.5)*1.4;branch.rotation.x=(Math.random()-.5)*.8;
+        group.add(branch);
+      }
+      group.scale.setScalar(.7+Math.random()*1.1);
       group.position.set(x,-.15,z);group.rotation.y=Math.random()*Math.PI;
       scene.add(group);sceneryItems.push({obj:group,baseZ:z,baseX:x,side});
-      // Small undergrowth around some tree trunks.
       if(i%2===0){
-        const bush=new THREE.Mesh(shrubGeo,shrubMat);bush.scale.set(1.1,.55,.8);
-        const bx=side*(7+Math.random()*27);bush.position.set(bx,.35,z-2);
+        const bush=new THREE.Group();
+        for(let k=0;k<4;k++){
+          const blob=new THREE.Mesh(canopyGeo,shrubMat);
+          blob.scale.set(.65+Math.random()*.45,.35+Math.random()*.35,.55+Math.random()*.4);
+          blob.position.set((Math.random()-.5)*1.2,.3+Math.random()*.25,(Math.random()-.5)*.9);
+          bush.add(blob);
+        }
+        const bx=side*(7+Math.random()*30);bush.position.set(bx,0,z-2);
         scene.add(bush);sceneryItems.push({obj:bush,baseZ:z-2,baseX:bx,side});
       }
     }
-    // Gravel and boulders along the shoulders.
-    for(let i=0;i<35;i++){
-      const z=-295+i*9+Math.random()*4;
-      const x=side*(6.5+Math.random()*7);
+    // Shoulder gravel varies in size and spacing instead of forming a uniform row.
+    for(let i=0;i<44;i++){
+      const z=-295+i*7+Math.random()*8;
+      const x=side*(6.3+Math.random()*10);
       const rockObj=new THREE.Mesh(rockGeo,rockMats[Math.floor(Math.random()*rockMats.length)]);
-      const sc=.18+Math.random()*.65;rockObj.scale.set(sc*1.4,sc,sc);
-      rockObj.position.set(x,sc*.45,z);rockObj.rotation.set(Math.random(),Math.random()*3,Math.random());
+      const sc=.12+Math.random()*.75;rockObj.scale.set(sc*(1+Math.random()),sc*(.5+Math.random()),sc);
+      rockObj.position.set(x,sc*.35,z);rockObj.rotation.set(Math.random(),Math.random()*3,Math.random());
       rockObj.castShadow=true;scene.add(rockObj);sceneryItems.push({obj:rockObj,baseZ:z,baseX:x,side});
     }
     // Repeating roadside marker posts give the track scale and speed cues.
