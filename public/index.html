@@ -495,27 +495,42 @@ function init3D(){
       },undefined,err=>console.warn("Human model failed to load; using fallback runner.",err));
     }).catch(err=>console.warn("3D human loader unavailable; using fallback runner.",err));
 
-  // Real river crossings with textured water, rocky banks and warning strips
+  // Dry, deep ravines: deliberately NO water mesh or water material.
+  // Each gap is an open canyon cut through the road with exposed earth walls,
+  // broken rock faces and a shadowed bottom well below the running surface.
   gapObjects=[];
+  const cliffMat=new THREE.MeshStandardMaterial({color:0x594b3e,roughness:1,flatShading:true});
+  const cliffDarkMat=new THREE.MeshStandardMaterial({color:0x292d30,roughness:1,flatShading:true});
+  const ledgeMat=new THREE.MeshStandardMaterial({color:0x80694e,roughness:1,flatShading:true});
+  const warningMat=new THREE.MeshStandardMaterial({color:0xffbd35,emissive:0x291400,roughness:.8});
+  const rubbleMats=[0x5a5d5d,0x716b60,0x484d51,0x827766].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1,flatShading:true}));
   gaps.forEach((g,i)=>{
     const at=typeof g==="number"?g:g.at;
-    const river=new THREE.Group();
-    const waterCanvas=document.createElement("canvas");waterCanvas.width=256;waterCanvas.height=256;
-    const wx=waterCanvas.getContext("2d");wx.fillStyle="#075985";wx.fillRect(0,0,256,256);
-    for(let n=0;n<180;n++){wx.strokeStyle="rgba(125,211,252,"+(.08+Math.random()*.2)+")";wx.lineWidth=1+Math.random()*3;wx.beginPath();const x=Math.random()*256,y=Math.random()*256;wx.moveTo(x,y);wx.bezierCurveTo(x+25,y-8,x+45,y+8,x+75,y+Math.random()*12);wx.stroke();}
-    const waterTex=new THREE.CanvasTexture(waterCanvas);waterTex.wrapS=waterTex.wrapT=THREE.RepeatWrapping;waterTex.repeat.set(2,2);
-    // Deep water sits well below the road surface, clearly exposing the drop.
-    const water=new THREE.Mesh(new THREE.PlaneGeometry(11.8,9.6),new THREE.MeshStandardMaterial({map:waterTex,color:0x167da8,roughness:.22,metalness:.12}));
-    water.rotation.x=-Math.PI/2;water.position.set(0,-1.25,0);river.add(water);
-    const bankMat=new THREE.MeshStandardMaterial({color:0x75634b,roughness:1});
-    for(const z of [-4.15,4.15]){
-      const bank=new THREE.Mesh(new THREE.BoxGeometry(12,.65,.8),bankMat);bank.position.set(0,-.25,z);river.add(bank);
-      for(let k=0;k<14;k++){const stone=new THREE.Mesh(new THREE.DodecahedronGeometry(.12+Math.random()*.16,0),new THREE.MeshStandardMaterial({color:[0x686868,0x82796b,0x4f5960][k%3],roughness:1}));stone.position.set(-5.4+Math.random()*10.8,.05+Math.random()*.12,z+(Math.random()-.5)*.6);river.add(stone);}
+    const ravine=new THREE.Group();
+    // Dark floor, far below the road: this is a dry chasm, not a blue surface.
+    const floor=new THREE.Mesh(new THREE.BoxGeometry(12.4,.35,9.8),cliffDarkMat);
+    floor.position.set(0,-4.3,0);floor.receiveShadow=true;ravine.add(floor);
+    // Rough cut-earth walls on both sides and both ends of the opening.
+    for(const side of [-1,1]){
+      const wall=new THREE.Mesh(new THREE.BoxGeometry(.85,4.5,9.8),cliffMat);
+      wall.position.set(side*5.9,-2.05,0);wall.rotation.z=side*.08;wall.receiveShadow=true;ravine.add(wall);
+      for(let n=0;n<16;n++){
+        const boulder=new THREE.Mesh(new THREE.DodecahedronGeometry(.25+Math.random()*.65,0),rubbleMats[Math.floor(Math.random()*rubbleMats.length)]);
+        boulder.scale.set(1.2,.7,.8);boulder.position.set(side*(5.1+Math.random()*.9),-1.0-Math.random()*3.1,-4.3+Math.random()*8.6);boulder.rotation.set(Math.random(),Math.random()*3,Math.random());boulder.castShadow=true;ravine.add(boulder);
+      }
     }
-    const deep=new THREE.Mesh(new THREE.BoxGeometry(11,.2,8),new THREE.MeshStandardMaterial({color:0x063047,roughness:1}));deep.position.set(0,-2.05,0);river.add(deep);
-    river.position.set(0,0,-at/10);scene.add(river);gapObjects.push(river);
-    const markerMat=new THREE.MeshStandardMaterial({color:0xffc857,emissive:0x442200,roughness:.6});
-    for(const z of [-4.65,4.65]){const marker=new THREE.Mesh(new THREE.BoxGeometry(11,.07,.16),markerMat);marker.position.set(0,.08,-at/10+z);scene.add(marker);}
+    for(const z of [-4.55,4.55]){
+      const cutFace=new THREE.Mesh(new THREE.BoxGeometry(12.2,4.2,.65),cliffMat);
+      cutFace.position.set(0,-2.0,z);cutFace.receiveShadow=true;ravine.add(cutFace);
+      // Broken, uneven earth lip at both edges of the pit.
+      for(let n=0;n<18;n++){
+        const chunk=new THREE.Mesh(new THREE.DodecahedronGeometry(.12+Math.random()*.28,0),ledgeMat);
+        chunk.position.set(-5.9+Math.random()*11.8,-.12+Math.random()*.25,z+(Math.random()-.5)*.5);chunk.rotation.set(Math.random(),Math.random()*3,Math.random());ravine.add(chunk);
+      }
+      const stripe=new THREE.Mesh(new THREE.BoxGeometry(12,.09,.16),warningMat);
+      stripe.position.set(0,.12,z);ravine.add(stripe);
+    }
+    ravine.position.set(0,0,-at/10);scene.add(ravine);gapObjects.push(ravine);
   });
 
   renderJumpButtons();
