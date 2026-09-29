@@ -320,21 +320,29 @@ function init3D(){
   road=new THREE.Group();
   road.position.set(0,-0.1,0);
   scene.add(road);
+  // Build separate road slabs with real open space at every pit.
+  // Road-local Z runs from +12 (behind the runner) toward -290 (ahead).
   const roadSegments=[];
   const gapCenters=gaps.map(g=>3-(typeof g==="number"?g:g.at)/10).sort((a,b)=>b-a);
-  let roadStart=12;
-  gapCenters.forEach(center=>{
-    const end=center+4.8;
-    if(roadStart>end){
-      const seg=new THREE.Mesh(new THREE.PlaneGeometry(12,roadStart-end),roadMat);
-      seg.rotation.x=-Math.PI/2;seg.position.set(0,0,-(roadStart+end)/2);road.add(seg);roadSegments.push(seg);
-    }
-    roadStart=center-4.8;
-  });
-  if(roadStart>-290){
-    const seg=new THREE.Mesh(new THREE.PlaneGeometry(12,roadStart+290),roadMat);
-    seg.rotation.x=-Math.PI/2;seg.position.set(0,0,-(roadStart+290)/2);road.add(seg);roadSegments.push(seg);
+  const pitHalfLength=4.8; // 9.6 m visible pit, matching the jump challenge.
+  let roadCursor=12;
+  function addRoadSlab(fromZ,toZ){
+    const length=fromZ-toZ;
+    if(length<=0)return;
+    const slab=new THREE.Mesh(new THREE.PlaneGeometry(12,length),roadMat);
+    slab.rotation.x=-Math.PI/2;
+    slab.position.set(0,0,(fromZ+toZ)/2);
+    slab.receiveShadow=true;
+    road.add(slab);
+    roadSegments.push(slab);
   }
+  gapCenters.forEach(center=>{
+    const nearEdge=center+pitHalfLength;
+    const farEdge=center-pitHalfLength;
+    addRoadSlab(roadCursor,nearEdge);
+    roadCursor=farEdge;
+  });
+  addRoadSlab(roadCursor,-290);
 
   // Road markings
   for(let i=0;i<40;i++){
@@ -420,8 +428,9 @@ function init3D(){
     const wx=waterCanvas.getContext("2d");wx.fillStyle="#075985";wx.fillRect(0,0,256,256);
     for(let n=0;n<180;n++){wx.strokeStyle="rgba(125,211,252,"+(.08+Math.random()*.2)+")";wx.lineWidth=1+Math.random()*3;wx.beginPath();const x=Math.random()*256,y=Math.random()*256;wx.moveTo(x,y);wx.bezierCurveTo(x+25,y-8,x+45,y+8,x+75,y+Math.random()*12);wx.stroke();}
     const waterTex=new THREE.CanvasTexture(waterCanvas);waterTex.wrapS=waterTex.wrapT=THREE.RepeatWrapping;waterTex.repeat.set(2,2);
-    const water=new THREE.Mesh(new THREE.PlaneGeometry(11,8),new THREE.MeshStandardMaterial({map:waterTex,color:0x4aa6c8,roughness:.24,metalness:.1}));
-    water.rotation.x=-Math.PI/2;water.position.set(0,-.58,0);river.add(water);
+    // Deep water sits well below the road surface, clearly exposing the drop.
+    const water=new THREE.Mesh(new THREE.PlaneGeometry(11.8,9.6),new THREE.MeshStandardMaterial({map:waterTex,color:0x167da8,roughness:.22,metalness:.12}));
+    water.rotation.x=-Math.PI/2;water.position.set(0,-1.25,0);river.add(water);
     const bankMat=new THREE.MeshStandardMaterial({color:0x75634b,roughness:1});
     for(const z of [-4.15,4.15]){
       const bank=new THREE.Mesh(new THREE.BoxGeometry(12,.65,.8),bankMat);bank.position.set(0,-.25,z);river.add(bank);
@@ -474,6 +483,13 @@ function animate(){
 
     roadLines.forEach((line,i)=>{
       line.position.z=3-((i*7+movement)%280);
+      // Center markings must stop at the pit too; never draw a stripe over empty space.
+      const overPit=gaps.some(g=>{
+        const at=typeof g==="number"?g:g.at;
+        const pitZ=3-(at-distance)/10;
+        return Math.abs(line.position.z-pitZ)<5.0;
+      });
+      line.visible=!overPit;
     });
 
     gapObjects.forEach((gap,i)=>{
