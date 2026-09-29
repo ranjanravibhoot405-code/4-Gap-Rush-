@@ -398,7 +398,7 @@ function init3D(){
         const human=gltf.scene;
         human.scale.setScalar(1.12);
         human.position.set(0,0,3);
-        human.rotation.y=Math.PI;
+        human.rotation.y=0; // Face down the track, away from the following camera.
         human.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
         scene.remove(oldRunner);
         car=human;
