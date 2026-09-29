@@ -269,8 +269,8 @@ wss.on("connection", ws => {
       }
 
       // A jump is valid only when the runner reaches the 400 m checkpoint
-      // (within 28 m before it, through 5 m after it).
-      if (player.dist < gap.at - 28 || player.dist > gap.at + 5) {
+      // (within 45 m before it, through 5 m after it).
+      if (player.dist < gap.at - 45 || player.dist > gap.at + 5) {
         return send(ws, { type:"error", message:"Wait until the " + gap.at + " m jump checkpoint!" });
       }
 
