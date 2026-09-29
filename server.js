@@ -298,7 +298,7 @@ wss.on("connection", ws => {
       }
 
       // After gap four, finish the remaining stretch without asking for a fifth jump.
-      if (player.gapIndex >= room.gaps.length && player.alive) {
+      if (player.gapIndex >= room.gaps.length && player.alive && result !== "fall") {
         player.dist = 2000;
         player.finished = true;
         player.finishTime = Date.now() - room.startedAt;
