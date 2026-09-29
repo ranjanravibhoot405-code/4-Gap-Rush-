@@ -188,7 +188,7 @@ function connect(){
         document.getElementById("jumpGuide").classList.add("hidden");
       } else {
         distance=m.dist;visualDistance=m.dist;lastFrame=0;fallTimer=0;
-        if(m.result==="nitro"||m.result==="skate")jumpTimer=0.8;
+        if((m.result==="nitro"||m.result==="skate")&&jumpTimer<=0)jumpTimer=0.8;
         renderJumpButtons();
         document.getElementById("raceStatus").textContent=m.result==="nitro"?"🚀 PERFECT! NITRO BOOST!":m.result==="skate"?"🛹 Safe jump!":m.result==="finish"?"🏆 FINISHED!":"";
       }
@@ -264,11 +264,11 @@ function jump(choice){
   if(!racing||!alive||usedChoices.includes(choice))return;
   const next=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
   const at=next?(typeof next==="number"?next:next.at):null;
-  if(at===null||distance<at-28||distance>at+5){
+  if(at===null||distance<at-45||distance>at+5){
     document.getElementById("raceStatus").textContent="⏳ Wait for the "+(at||"finish")+" m checkpoint!";
     return;
   }
-  send({type:"jump",choice});
+  jumpTimer=0.8;\n  send({type:"jump",choice});
 }
 
 function updateHUD(){
@@ -626,7 +626,7 @@ function animate(){
       distance=Math.max(distance,visualDistance);
       const nextCheckpoint=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
       const checkpointAt=nextCheckpoint?(typeof nextCheckpoint==="number"?nextCheckpoint:nextCheckpoint.at):null;
-      const checkpointReady=checkpointAt!==null && distance>=checkpointAt-28 && distance<=checkpointAt+5;
+      const checkpointReady=checkpointAt!==null && distance>=checkpointAt-45 && distance<=checkpointAt+5;
       const controls=document.getElementById("controls");
       const guide=document.getElementById("jumpGuide");
       if(controls) controls.classList.toggle("hidden",!checkpointReady);
