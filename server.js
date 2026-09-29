@@ -261,6 +261,28 @@ wss.on("connection", ws => {
       return;
     }
 
+    // If the runner ignores the jump prompt, treat it as a missed jump/fall
+    // and allow the race to continue after the recovery animation.
+    if (m.type === "skip_gap") {
+      if (!room.started || !player.alive || player.finished) return;
+      player.gapIndex = player.gapIndex || 0;
+      const gap = room.gaps[player.gapIndex];
+      if (!gap || player.dist < gap.at - 2 || player.dist > gap.at + 5) return;
+      player.gapIndex++;
+      player.recovery--;
+      player.dist = gap.at + 20;
+      if (player.recovery < 0) player.alive = false;
+      send(ws, { type: "jump_result", result: "fall", recovery: player.recovery, dist: player.dist, usedChoices: player.usedChoices || [] });
+      broadcast(room, roomState(room));
+      if ([...room.players.values()].every(p => p.finished || !p.alive)) {
+        const results = [...room.players.values()]
+          .map(p => ({ name: p.name, finished: p.finished, alive: p.alive, time: p.finishTime ?? null, dist: p.dist }))
+          .sort((a, b) => a.finished !== b.finished ? (a.finished ? -1 : 1) : (a.time ?? Infinity) - (b.time ?? Infinity));
+        broadcast(room, { type: "race_over", results, winner: results.find(p => p.finished)?.name || null });
+      }
+      return;
+    }
+
     // JUMP: only allow the choice at the matching 400 m checkpoint.
     if (m.type === "jump") {
       if (!room.started || !player.alive || player.finished) return;
