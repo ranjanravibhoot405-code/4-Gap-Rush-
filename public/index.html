@@ -268,7 +268,8 @@ function jump(choice){
     document.getElementById("raceStatus").textContent="⏳ Wait for the "+(at||"finish")+" m checkpoint!";
     return;
   }
-  jumpTimer=0.8;\n  send({type:"jump",choice});
+  jumpTimer=0.8;
+  send({type:"jump",choice});
 }
 
 function updateHUD(){
