@@ -291,14 +291,14 @@ function init3D(){
   }
 
   scene=new THREE.Scene();
-  scene.background=new THREE.Color(0xb8cbd2);
-  scene.fog=new THREE.Fog(0xb8cbd2,95,330);
-  const skyCanvas=document.createElement("canvas");skyCanvas.width=512;skyCanvas.height=256;
+  scene.background=new THREE.Color(0x9eb9c8);
+  scene.fog=new THREE.FogExp2(0xb3c4c9,0.0028);
+  const skyCanvas=document.createElement("canvas");skyCanvas.width=1024;skyCanvas.height=512;
   const skyCtx=skyCanvas.getContext("2d");
   const skyGrad=skyCtx.createLinearGradient(0,0,0,256);
-  skyGrad.addColorStop(0,"#4f829f");skyGrad.addColorStop(.48,"#a9c9d7");skyGrad.addColorStop(.78,"#e2d9c4");skyGrad.addColorStop(1,"#b9c6b2");
+  skyGrad.addColorStop(0,"#47718e");skyGrad.addColorStop(.38,"#91b5c8");skyGrad.addColorStop(.72,"#d6d9d5");skyGrad.addColorStop(1,"#b6c5bd");
   skyCtx.fillStyle=skyGrad;skyCtx.fillRect(0,0,512,256);
-  for(let c=0;c<22;c++){const x=Math.random()*512,y=70+Math.random()*100;const g=skyCtx.createRadialGradient(x,y,2,x,y,28);g.addColorStop(0,"rgba(255,255,255,.20)");g.addColorStop(1,"rgba(255,255,255,0)");skyCtx.fillStyle=g;skyCtx.fillRect(x-45,y-35,90,70);}
+  for(let c=0;c<70;c++){const x=Math.random()*1024,y=65+Math.random()*190;for(let p=0;p<8;p++){const xx=x+(Math.random()-.5)*100,yy=y+(Math.random()-.5)*28,rr=12+Math.random()*40;const g=skyCtx.createRadialGradient(xx,yy,1,xx,yy,rr);g.addColorStop(0,"rgba(255,255,255,"+(0.035+Math.random()*.07)+")");g.addColorStop(1,"rgba(255,255,255,0)");skyCtx.fillStyle=g;skyCtx.fillRect(xx-rr,yy-rr,rr*2,rr*2);}}
   const skyTex=new THREE.CanvasTexture(skyCanvas);skyTex.colorSpace=THREE.SRGBColorSpace;
   const skyDome=new THREE.Mesh(new THREE.SphereGeometry(420,32,20),new THREE.MeshBasicMaterial({map:skyTex,side:THREE.BackSide,depthWrite:false}));
   scene.add(skyDome);
@@ -329,7 +329,7 @@ function init3D(){
 
   // Road
   const roadGeo=new THREE.PlaneGeometry(12,300);
-  const roadCanvas=document.createElement("canvas");roadCanvas.width=256;roadCanvas.height=256;const rc=roadCanvas.getContext("2d");rc.fillStyle="#34383d";rc.fillRect(0,0,256,256);for(let i=0;i<2400;i++){const v=35+Math.random()*55;rc.fillStyle="rgba("+v+","+v+","+v+",.22)";rc.fillRect(Math.random()*256,Math.random()*256,1+Math.random()*2,1+Math.random()*2);}const roadTex=new THREE.CanvasTexture(roadCanvas);roadTex.wrapS=roadTex.wrapT=THREE.RepeatWrapping;roadTex.repeat.set(2,24);const roadMat=new THREE.MeshStandardMaterial({map:roadTex,color:0xbfc2c5,roughness:.96});
+  const roadCanvas=document.createElement("canvas");roadCanvas.width=512;roadCanvas.height=512;const rc=roadCanvas.getContext("2d");rc.fillStyle="#424448";rc.fillRect(0,0,512,512);for(let i=0;i<18000;i++){const v=45+Math.random()*90;rc.fillStyle="rgba("+v+","+v+","+v+","+(Math.random()*.24)+")";const sz=Math.random()*2.8+.3;rc.fillRect(Math.random()*512,Math.random()*512,sz,sz);}for(let i=0;i<240;i++){rc.strokeStyle="rgba(20,22,25,"+(Math.random()*.15)+")";rc.lineWidth=.3+Math.random()*1.4;rc.beginPath();let x=Math.random()*512,y=Math.random()*512;rc.moveTo(x,y);rc.lineTo(x+(Math.random()-.5)*30,y+Math.random()*70);rc.stroke();}const roadTex=new THREE.CanvasTexture(roadCanvas);roadTex.colorSpace=THREE.SRGBColorSpace;roadTex.wrapS=roadTex.wrapT=THREE.RepeatWrapping;roadTex.repeat.set(2,36);const roadMat=new THREE.MeshStandardMaterial({map:roadTex,color:0xffffff,roughness:1});
   road=new THREE.Group();
   road.position.set(0,-0.1,0);
   scene.add(road);
@@ -369,7 +369,7 @@ function init3D(){
   }
 
   // Roadside
-  const groundMat=new THREE.MeshStandardMaterial({color:0x426b38,roughness:1});
+  const groundMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1});
   for(const side of [-1,1]){
     const ground=new THREE.Mesh(new THREE.PlaneGeometry(140,300),groundMat);
     ground.rotation.x=-Math.PI/2;
@@ -380,25 +380,24 @@ function init3D(){
   // Detailed roadside environment: textured terrain, distant hills, trees,
   // shrubs, boulders and roadside posts. Keep meshes low-poly for mobile.
   sceneryItems.length=0;
-  const grassCanvas=document.createElement("canvas");grassCanvas.width=256;grassCanvas.height=256;
-  const gc=grassCanvas.getContext("2d");gc.fillStyle="#496f36";gc.fillRect(0,0,256,256);
-  for(let n=0;n<3200;n++){const shade=35+Math.random()*65;gc.fillStyle="rgba("+Math.floor(shade*.65)+","+Math.floor(shade)+","+Math.floor(shade*.45)+",.35)";gc.fillRect(Math.random()*256,Math.random()*256,1+Math.random()*3,2+Math.random()*5);}
-  const grassTex=new THREE.CanvasTexture(grassCanvas);grassTex.wrapS=grassTex.wrapT=THREE.RepeatWrapping;grassTex.repeat.set(10,28);
+  const grassCanvas=document.createElement("canvas");grassCanvas.width=512;grassCanvas.height=512;
+  const gc=grassCanvas.getContext("2d");gc.fillStyle="#526b3c";gc.fillRect(0,0,512,512);
+  for(let n=0;n<19000;n++){const shade=30+Math.random()*100;gc.fillStyle="rgba("+Math.floor(shade*.72)+","+Math.floor(shade)+","+Math.floor(shade*.48)+","+(0.08+Math.random()*.24)+")";gc.beginPath();gc.ellipse(Math.random()*512,Math.random()*512,.4+Math.random()*1.5,1+Math.random()*4,Math.random()*3,0,Math.PI*2);gc.fill();}
+  const grassTex=new THREE.CanvasTexture(grassCanvas);grassTex.colorSpace=THREE.SRGBColorSpace;grassTex.wrapS=grassTex.wrapT=THREE.RepeatWrapping;grassTex.repeat.set(18,48);\n  // Load a photographic grass albedo when online; retain detailed procedural fallback.\n  new THREE.TextureLoader().load("https://threejs.org/examples/textures/terrain/grasslight-big.jpg",tex=>{tex.colorSpace=THREE.SRGBColorSpace;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(18,48);groundMat.map=tex;groundMat.needsUpdate=true;},undefined,()=>{});
   groundMat.map=grassTex;groundMat.color.set(0xffffff);groundMat.needsUpdate=true;
 
   // Distant rolling ridgelines built as irregular terrain meshes, not floating rocks.
   const hillMats=[0x49684b,0x587452,0x6d805e].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1,flatShading:false}));
   for(let side of [-1,1]){
     for(let ridge=0;ridge<3;ridge++){
-      const cols=34,rows=10,verts=[],indices=[];
+      const cols=76,rows=30,verts=[],indices=[];
       const width=90+ridge*32,depth=105+ridge*28;
       for(let iz=0;iz<=rows;iz++){
         for(let ix=0;ix<=cols;ix++){
           const x=(ix/cols-.5)*width;
           const z=(iz/rows-.5)*depth;
           const envelope=Math.sin(ix/cols*Math.PI);
-          const peaks=(Math.sin(ix*.51+ridge*2.1)*.5+Math.cos(ix*.23+ridge)*.5);
-          const y=1+Math.max(0,envelope*(7+ridge*3+peaks*8))*(iz===0||iz===rows?.25:1);
+          const peaks=(Math.sin(ix*.31+ridge*2.1)*.5+Math.cos(ix*.17+ridge)*.5+Math.sin(iz*.8+ix*.11)*.18);\n          const y=1+Math.max(0,envelope*(8+ridge*4+peaks*10))*(iz===0||iz===rows?.25:1)+Math.sin(iz*.45+ix*.21+ridge)*.28;
           verts.push(x,y,z);
           if(ix<cols&&iz<rows){const a=iz*(cols+1)+ix,b=a+1,d=a+cols+1,e=d+1;indices.push(a,d,b,b,d,e);}
         }
@@ -415,11 +414,11 @@ function init3D(){
   const leafMats=[0x244b2d,0x315f36,0x426f3b,0x527b45,0x1e4228].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.96}));
   const rockMats=[0x77786f,0x5d6669,0x8b806d].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1,flatShading:true}));
   const shrubMat=new THREE.MeshStandardMaterial({color:0x365c30,roughness:1});
-  const treeTrunkGeo=new THREE.CylinderGeometry(.13,.32,3.6,9);
+  const treeTrunkGeo=new THREE.CylinderGeometry(.13,.32,3.6,14);
   const branchGeo=new THREE.CylinderGeometry(.055,.11,1.55,7);
-  const canopyGeo=new THREE.SphereGeometry(1,12,10);
-  const shrubGeo=new THREE.IcosahedronGeometry(1,1);
-  const rockGeo=new THREE.DodecahedronGeometry(1,1);
+  const canopyGeo=new THREE.SphereGeometry(1,24,18);
+  const shrubGeo=new THREE.IcosahedronGeometry(1,2);
+  const rockGeo=new THREE.IcosahedronGeometry(1,2);
   const postMat=new THREE.MeshStandardMaterial({color:0xc8c5b9,roughness:.8});
   for(let side of [-1,1]){
     // Broadleaf trees with branching trunks and irregular overlapping crowns.
@@ -428,10 +427,10 @@ function init3D(){
       const z=-285+i*10+Math.random()*7;
       const x=side*(10+Math.random()*32);
       const group=new THREE.Group();
-      const height=3.2+Math.random()*2.7;
+      const height=4.2+Math.random()*4.0;
       const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.12,.28,height,9),trunkMat);
       trunk.position.y=height/2;trunk.castShadow=true;group.add(trunk);
-      const crownCount=7+Math.floor(Math.random()*7);
+      const crownCount=10+Math.floor(Math.random()*9);
       for(let t=0;t<crownCount;t++){
         const crown=new THREE.Mesh(canopyGeo,leafMats[Math.floor(Math.random()*leafMats.length)]);
         const s=.7+Math.random()*1.0;
