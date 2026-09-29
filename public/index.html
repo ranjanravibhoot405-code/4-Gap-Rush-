@@ -96,6 +96,8 @@ let raceStartedAt=0;
 let limbs=[];
 let humanMixer=null;
 let sceneryItems=[];
+let fallTimer=0;
+let jumpTimer=0;
 
 function connect(){
   const protocol=location.protocol==="https:"?"wss:":"ws:";
@@ -172,6 +174,8 @@ function connect(){
       lastFrame=0;
       recovery=m.recovery;
       if(Array.isArray(m.usedChoices)) usedChoices=m.usedChoices;
+      if(m.result==="fall"){fallTimer=1.15;jumpTimer=0;}
+      else if(m.result==="nitro"||m.result==="skate"){jumpTimer=0.8;fallTimer=0;}
       renderJumpButtons();
       updateHUD();
       document.getElementById("raceStatus").textContent=
@@ -641,8 +645,27 @@ function animate(){
 
     const runT=Date.now()*.009;
     if(humanMixer) humanMixer.update(dt);
-    if(car){car.position.y=Math.max(0,Math.sin(runT*2)*.035);car.rotation.z=Math.sin(runT)*.012;}
-    if(!humanMixer)(window.runnerLimbs||[]).forEach(({part,phase,arm})=>{part.rotation.x=Math.sin(runT+phase)*(arm?.42:.62);});
+    if(car){
+      const baseY=Math.max(0,Math.sin(runT*2)*.035);
+      if(fallTimer>0){
+        fallTimer=Math.max(0,fallTimer-dt);
+        const p=1-fallTimer/1.15;
+        car.position.y=baseY-(p*p)*2.2;
+        car.rotation.z=p*Math.PI*1.55;
+        car.rotation.x=p*.35;
+      } else if(jumpTimer>0){
+        jumpTimer=Math.max(0,jumpTimer-dt);
+        const p=1-jumpTimer/.8;
+        car.position.y=baseY+Math.sin(p*Math.PI)*1.35;
+        car.rotation.z=Math.sin(p*Math.PI)*.08;
+        car.rotation.x=0;
+      } else {
+        car.position.y=baseY;
+        car.rotation.z=Math.sin(runT)*.012;
+        car.rotation.x=0;
+      }
+    }
+    if(!humanMixer && fallTimer<=0)(window.runnerLimbs||[]).forEach(({part,phase,arm})=>{part.rotation.x=Math.sin(runT+phase)*(arm?.42:.62);});
     updateHUD();
   }
 
