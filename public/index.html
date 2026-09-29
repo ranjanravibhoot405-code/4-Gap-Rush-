@@ -569,8 +569,8 @@ function init3D(){
   const gateMat=new THREE.MeshStandardMaterial({color:0xf8fafc,roughness:.6});
   for(const x of [-5.8,5.8]){const post=new THREE.Mesh(new THREE.BoxGeometry(.35,5.2,.35),gateMat);post.position.set(x,2.6,0);finishGate.add(post);}
   const beam=new THREE.Mesh(new THREE.BoxGeometry(12,.45,.45),gateMat);beam.position.set(0,5.05,0);finishGate.add(beam);
-  const checkerCanvas=document.createElement("canvas");checkerCanvas.width=256;checkerCanvas.height=64;
-  const cc=checkerCanvas.getContext("2d");for(let y=0;y<4;y++)for(let x=0;x<16;x++){cc.fillStyle=(x+y)%2?"#fff":"#111";cc.fillRect(x*16,y*16,16,16);}
+  const checkerCanvas=document.createElement("canvas");checkerCanvas.width=512;checkerCanvas.height=128;
+  const cc=checkerCanvas.getContext("2d");for(let y=0;y<8;y++)for(let x=0;x<32;x++){cc.fillStyle=(x+y)%2?"#fff":"#111";cc.fillRect(x*16,y*16,16,16);}cc.fillStyle="#ffdf00";cc.fillRect(90,35,332,58);cc.fillStyle="#111";cc.font="bold 48px Arial";cc.textAlign="center";cc.textBaseline="middle";cc.fillText("FINISH",256,64);
   const checkerTex=new THREE.CanvasTexture(checkerCanvas);
   const banner=new THREE.Mesh(new THREE.PlaneGeometry(11.5,1.4),new THREE.MeshBasicMaterial({map:checkerTex,side:THREE.DoubleSide}));
   banner.position.set(0,4.25,0);finishGate.add(banner);scene.add(finishGate);
@@ -675,7 +675,7 @@ function animate(){
       line.visible=!overPit;
     });
 
-    if(finishGate){finishGate.position.z=3-(2000-distance)/10;finishGate.visible=(2000-distance)>-25&&(2000-distance)<130;}
+    if(finishGate){finishGate.position.z=3-(2000-distance)/10;finishGate.visible=(2000-distance)>-8&&(2000-distance)<350;}
     gapObjects.forEach((gap,i)=>{
       const at=typeof gaps[i]==="number"?gaps[i]:gaps[i].at;
       gap.position.z=3-(at-distance)/10;
