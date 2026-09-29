@@ -308,10 +308,24 @@ function init3D(){
   // Road
   const roadGeo=new THREE.PlaneGeometry(12,300);
   const roadCanvas=document.createElement("canvas");roadCanvas.width=256;roadCanvas.height=256;const rc=roadCanvas.getContext("2d");rc.fillStyle="#34383d";rc.fillRect(0,0,256,256);for(let i=0;i<2400;i++){const v=35+Math.random()*55;rc.fillStyle="rgba("+v+","+v+","+v+",.22)";rc.fillRect(Math.random()*256,Math.random()*256,1+Math.random()*2,1+Math.random()*2);}const roadTex=new THREE.CanvasTexture(roadCanvas);roadTex.wrapS=roadTex.wrapT=THREE.RepeatWrapping;roadTex.repeat.set(2,24);const roadMat=new THREE.MeshStandardMaterial({map:roadTex,color:0xbfc2c5,roughness:.96});
-  road=new THREE.Mesh(roadGeo,roadMat);
-  road.rotation.x=-Math.PI/2;
-  road.position.set(0,-0.1,-110);
+  road=new THREE.Group();
+  road.position.set(0,-0.1,0);
   scene.add(road);
+  const roadSegments=[];
+  const gapCenters=gaps.map(g=>3-(typeof g==="number"?g:g.at)/10).sort((a,b)=>b-a);
+  let roadStart=12;
+  gapCenters.forEach(center=>{
+    const end=center+4.8;
+    if(roadStart>end){
+      const seg=new THREE.Mesh(new THREE.PlaneGeometry(12,roadStart-end),roadMat);
+      seg.rotation.x=-Math.PI/2;seg.position.set(0,0,-(roadStart+end)/2);road.add(seg);roadSegments.push(seg);
+    }
+    roadStart=center-4.8;
+  });
+  if(roadStart>-290){
+    const seg=new THREE.Mesh(new THREE.PlaneGeometry(12,roadStart+290),roadMat);
+    seg.rotation.x=-Math.PI/2;seg.position.set(0,0,-(roadStart+290)/2);road.add(seg);roadSegments.push(seg);
+  }
 
   // Road markings
   for(let i=0;i<40;i++){
@@ -325,13 +339,13 @@ function init3D(){
   }
 
   // Roadside
-  const ground=new THREE.Mesh(
-    new THREE.PlaneGeometry(300,300),
-    new THREE.MeshStandardMaterial({color:0x426b38,roughness:1})
-  );
-  ground.rotation.x=-Math.PI/2;
-  ground.position.set(0,-.2,-100);
-  scene.add(ground);
+  const groundMat=new THREE.MeshStandardMaterial({color:0x426b38,roughness:1});
+  for(const side of [-1,1]){
+    const ground=new THREE.Mesh(new THREE.PlaneGeometry(140,300),groundMat);
+    ground.rotation.x=-Math.PI/2;
+    ground.position.set(side*76,-.2,-135);
+    scene.add(ground);
+  }
 
   // Animated 3D human runner (not a vehicle/object)
   car=new THREE.Group();
@@ -342,7 +356,14 @@ function init3D(){
   const shorts=new THREE.MeshStandardMaterial({color:girl?0xfce7f3:0x1e40af,roughness:.8});
   const shoes=new THREE.MeshStandardMaterial({color:0xf8fafc,roughness:.5});
   const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.38,.72,6,12),shirt); torso.position.y=1.55; car.add(torso);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(girl?.31:.32,20,20),skin); head.scale.set(1,1.05,.92); head.position.y=2.35; car.add(head);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(girl?.31:.32,24,20),skin); head.scale.set(1,1.05,.92); head.position.y=2.35; car.add(head);
+  const nose=new THREE.Mesh(new THREE.SphereGeometry(.075,10,8),skin);nose.scale.set(.8,1,1.2);nose.position.set(0,2.31,.3);car.add(nose);
+  const eyeMat=new THREE.MeshStandardMaterial({color:0x171717,roughness:.4});
+  for(const side of [-1,1]){
+    const eye=new THREE.Mesh(new THREE.SphereGeometry(.035,10,8),eyeMat);eye.position.set(side*.105,2.39,.286);car.add(eye);
+    const ear=new THREE.Mesh(new THREE.SphereGeometry(.075,10,8),skin);ear.position.set(side*.31,2.34,0);car.add(ear);
+  }
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(.12,.14,.22,12),skin);neck.position.y=2.02;car.add(neck);
   const hairMat=new THREE.MeshStandardMaterial({color:0x21160f});
   const hair=new THREE.Mesh(new THREE.SphereGeometry(girl?.34:.36,20,12,0,Math.PI*2,0,Math.PI*.62),hairMat); hair.position.y=2.49; car.add(hair);
   if(girl){const backHair=new THREE.Mesh(new THREE.SphereGeometry(.28,16,12),hairMat);backHair.scale.set(.9,1.25,.65);backHair.position.set(0,2.18,-.12);car.add(backHair);const bow=new THREE.Mesh(new THREE.SphereGeometry(.09,12,8),new THREE.MeshStandardMaterial({color:0xff3b8d}));bow.position.set(.25,2.68,0);car.add(bow);}
@@ -368,7 +389,7 @@ function init3D(){
     for(let n=0;n<180;n++){wx.strokeStyle="rgba(125,211,252,"+(.08+Math.random()*.2)+")";wx.lineWidth=1+Math.random()*3;wx.beginPath();const x=Math.random()*256,y=Math.random()*256;wx.moveTo(x,y);wx.bezierCurveTo(x+25,y-8,x+45,y+8,x+75,y+Math.random()*12);wx.stroke();}
     const waterTex=new THREE.CanvasTexture(waterCanvas);waterTex.wrapS=waterTex.wrapT=THREE.RepeatWrapping;waterTex.repeat.set(2,2);
     const water=new THREE.Mesh(new THREE.PlaneGeometry(11,8),new THREE.MeshStandardMaterial({map:waterTex,color:0x4aa6c8,roughness:.24,metalness:.1}));
-    water.rotation.x=-Math.PI/2;water.position.set(0,-1.8,0);river.add(water);
+    water.rotation.x=-Math.PI/2;water.position.set(0,-.58,0);river.add(water);
     const bankMat=new THREE.MeshStandardMaterial({color:0x75634b,roughness:1});
     for(const z of [-4.15,4.15]){
       const bank=new THREE.Mesh(new THREE.BoxGeometry(12,.65,.8),bankMat);bank.position.set(0,-.25,z);river.add(bank);
@@ -417,7 +438,7 @@ function animate(){
     const movement=visualDistance/10+sceneryClock;
 
     // Road moves towards the player
-    road.position.z=-110+(movement%7);
+    road.position.z=distance/10;
 
     roadLines.forEach((line,i)=>{
       line.position.z=3-((i*7+movement)%280);
@@ -429,10 +450,10 @@ function animate(){
       gap.visible=(at-distance)>-30&&(at-distance)<100;
     });
 
-    const runT=Date.now()*.012;
-    car.position.y=Math.max(0,Math.sin(runT*2)*.07);
-    car.rotation.z=Math.sin(runT)*.025;
-    (window.runnerLimbs||[]).forEach(({part,phase,arm})=>{part.rotation.x=Math.sin(runT+phase)*(arm?.75:1.0);});
+    const runT=Date.now()*.009;
+    car.position.y=Math.max(0,Math.sin(runT*2)*.035);
+    car.rotation.z=Math.sin(runT)*.012;
+    (window.runnerLimbs||[]).forEach(({part,phase,arm})=>{part.rotation.x=Math.sin(runT+phase)*(arm?.42:.62);});
     updateHUD();
   }
 
