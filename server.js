@@ -290,18 +290,8 @@ wss.on("connection", ws => {
       player.gapIndex = player.gapIndex || 0;
       const gap = room.gaps[player.gapIndex];
       if (!gap) {
-        // Final gap is completed; run the final stretch to the finish line.
-        if (player.gapIndex >= room.gaps.length && player.dist >= 1600) {
-          player.dist = 2000;
-          player.finished = true;
-          player.finishTime = Date.now() - room.startedAt;
-          send(ws, { type: "jump_result", result: "finish", recovery: player.recovery, dist: player.dist, usedChoices: player.usedChoices });
-          broadcast(room, roomState(room));
-          if ([...room.players.values()].every(p => p.finished || !p.alive)) {
-            const results = [...room.players.values()].map(p => ({name:p.name, finished:p.finished, alive:p.alive, time:p.finishTime ?? null, dist:p.dist})).sort((a,b) => a.finished!==b.finished ? (a.finished?-1:1) : (a.time??Infinity)-(b.time??Infinity));
-            broadcast(room, { type:"race_over", results, winner:results.find(p=>p.finished)?.name || null });
-          }
-        }
+        // No more gaps: the player must continue through the final straight.
+        // The progress handler declares the finish only at the real 2000 m line.
         return;
       }
 
