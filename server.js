@@ -264,7 +264,7 @@ wss.on("connection", ws => {
     // If the runner ignores the jump prompt, treat it as a missed jump/fall
     // and allow the race to continue after the recovery animation.
     if (m.type === "skip_gap") {
-      if (!room.started || !player.alive || player.finished) return;
+      if (!room.started || room.ended || !player.alive || player.finished) return;
       player.gapIndex = player.gapIndex || 0;
       const gap = room.gaps[player.gapIndex];
       if (!gap || player.dist < gap.at - 2 || player.dist > gap.at) return;
@@ -298,7 +298,7 @@ wss.on("connection", ws => {
 
       // A jump is valid only when the runner reaches the 400 m checkpoint
       // (within 2 m before it, through 5 m after it).
-      if (player.dist < gap.at - 2 || player.dist > gap.at + 5) {
+      if (player.dist < gap.at - 2 || player.dist > gap.at) {
         return send(ws, { type:"error", message:"Jump is available only in the 2 m zone before the " + gap.at + " m gap." });
       }
 
