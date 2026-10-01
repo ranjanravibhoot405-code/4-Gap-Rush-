@@ -102,7 +102,8 @@ wss.on("connection", ws => {
           at,
           width: [3, 5, 7, 9][Math.floor(Math.random() * 4)]
         })),
-        players: new Map()
+        players: new Map(),
+        ended: false
       };
 
       const id = Math.random().toString(36).slice(2, 9);
@@ -225,7 +226,7 @@ wss.on("connection", ws => {
 
       room.started = true;
       room.startedAt = Date.now();
-      room.players.forEach(p => { p.usedChoices = []; p.gapIndex = 0; p.dist = 0; p.recovery = 2; p.alive = true; p.finished = false; });
+      room.players.forEach(p => { p.usedChoices = []; p.gapIndex = 0; p.dist = 0; p.recovery = 2; p.alive = true; p.finished = false; p.finishTime = null; });
 
       return broadcast(room, {
         type: "race_start",
@@ -236,7 +237,7 @@ wss.on("connection", ws => {
 
     // CLIENT DISTANCE PROGRESS: server only accepts progress toward the next gap.
     if (m.type === "progress") {
-      if (!room.started || !player.alive || player.finished) return;
+      if (!room.started || room.ended || !player.alive || player.finished) return;
       player.gapIndex = player.gapIndex || 0;
       const nextGap = room.gaps[player.gapIndex];
       const reported = Number(m.dist);
@@ -249,14 +250,13 @@ wss.on("connection", ws => {
         player.dist = 2000;
         player.finished = true;
         player.finishTime = Date.now() - room.startedAt;
-        send(ws, { type: "jump_result", result: "finish", recovery: player.recovery, dist: 2000, usedChoices: player.usedChoices || [] });
+        send(ws, { type: "jump_result", result: "finish", recovery: player.recovery, dist: 2000, usedChoices: player.usedChoices || [], finished: true });
         broadcast(room, roomState(room));
-        if ([...room.players.values()].every(p => p.finished || !p.alive)) {
-          const results = [...room.players.values()]
-            .map(p => ({ name: p.name, finished: p.finished, alive: p.alive, time: p.finishTime ?? null, dist: p.dist }))
-            .sort((a, b) => a.finished !== b.finished ? (a.finished ? -1 : 1) : (a.time ?? Infinity) - (b.time ?? Infinity));
-          broadcast(room, { type: "race_over", results, winner: results.find(p => p.finished)?.name || null });
-        }
+        room.ended = true;
+        const results = [...room.players.values()]
+          .map(p => ({ name: p.name, finished: p.finished, alive: p.alive, time: p.finishTime ?? null, dist: p.dist }))
+          .sort((a, b) => a.finished !== b.finished ? (a.finished ? -1 : 1) : (a.time ?? Infinity) - (b.time ?? Infinity));
+        broadcast(room, { type: "race_over", results, winner: player.name });
       }
       return;
     }
@@ -267,12 +267,13 @@ wss.on("connection", ws => {
       if (!room.started || !player.alive || player.finished) return;
       player.gapIndex = player.gapIndex || 0;
       const gap = room.gaps[player.gapIndex];
-      if (!gap || player.dist < gap.at - 2 || player.dist > gap.at + 5) return;
+      if (!gap || player.dist < gap.at - 2 || player.dist > gap.at) return;
       player.gapIndex++;
-      player.recovery--;
-      player.dist = gap.at + 20;
-      if (player.recovery < 0) player.alive = false;
-      send(ws, { type: "jump_result", result: "fall", recovery: player.recovery, dist: player.dist, usedChoices: player.usedChoices || [] });
+      const hadRecovery = player.recovery > 0;
+      if (hadRecovery) player.recovery--;
+      player.dist = hadRecovery ? gap.at + 20 : gap.at;
+      if (!hadRecovery) player.alive = false;
+      send(ws, { type: "jump_result", result: "fall", recovery: Math.max(0, player.recovery), dist: player.dist, alive: player.alive, usedChoices: player.usedChoices || [] });
       broadcast(room, roomState(room));
       if ([...room.players.values()].every(p => p.finished || !p.alive)) {
         const results = [...room.players.values()]
@@ -298,7 +299,7 @@ wss.on("connection", ws => {
       // A jump is valid only when the runner reaches the 400 m checkpoint
       // (within 2 m before it, through 5 m after it).
       if (player.dist < gap.at - 2 || player.dist > gap.at + 5) {
-        return send(ws, { type:"error", message:"Wait until the " + gap.at + " m jump checkpoint!" });
+        return send(ws, { type:"error", message:"Jump is available only in the 2 m zone before the " + gap.at + " m gap." });
       }
 
       const choice = Number(m.choice);
@@ -319,14 +320,15 @@ wss.on("connection", ws => {
         player.dist = gap.at + 36;
       } else {
         result = "fall";
-        player.recovery--;
-        player.dist = gap.at + 20;
-        if (player.recovery < 0) player.alive = false;
+        const hadRecovery = player.recovery > 0;
+        if (hadRecovery) player.recovery--;
+        player.dist = hadRecovery ? gap.at + 20 : gap.at;
+        if (!hadRecovery) player.alive = false;
       }
 
       // After the fourth gap, keep racing through the final straight to 2000 m.
       // The progress handler will declare the finish only when the runner reaches it.
-      send(ws, { type:"jump_result", result, width:gap.width, recovery:player.recovery, dist:player.dist, usedChoices:player.usedChoices });
+      send(ws, { type:"jump_result", result, width:gap.width, recovery:Math.max(0, player.recovery), dist:player.dist, alive:player.alive, usedChoices:player.usedChoices });
       broadcast(room, roomState(room));
 
       if ([...room.players.values()].every(p => p.finished || !p.alive)) {
