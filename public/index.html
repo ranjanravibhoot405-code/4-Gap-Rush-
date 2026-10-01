@@ -173,14 +173,15 @@ function connect(){
     }
 
     if(m.type==="jump_result"){
-      recovery=m.recovery;
+      recovery=Math.max(0,Number(m.recovery)||0);
+      if(typeof m.alive==="boolean") alive=m.alive;
       if(Array.isArray(m.usedChoices)) usedChoices=m.usedChoices;
       if(m.result==="fall"){
         const hitGap=gaps.find(g=>(typeof g==="number"?g:g.at)>=distance-35);
         const pitAt=hitGap?(typeof hitGap==="number"?hitGap:hitGap.at):distance;
         distance=visualDistance=pitAt;
         fallTimer=1.15;jumpTimer=0;
-        recoveryResumeAt=m.dist;
+        recoveryResumeAt=alive?m.dist:null;
         fallSequence={phase:"fall",remaining:1.15};
         let panel=document.getElementById("recoveryAction");
         if(!panel){panel=document.createElement("div");panel.id="recoveryAction";panel.style.cssText="position:absolute;z-index:8;left:50%;top:48%;transform:translate(-50%,-50%);background:rgba(4,10,25,.96);border:3px solid #50f6c5;border-radius:18px;padding:20px 28px;font-size:25px;line-height:1.5;min-width:240px;box-shadow:0 0 30px #000;text-align:center";document.getElementById("game").appendChild(panel);}
@@ -266,7 +267,7 @@ function jump(choice){
   if(!racing||!alive||usedChoices.includes(choice))return;
   const next=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
   const at=next?(typeof next==="number"?next:next.at):null;
-  if(at===null||distance<at-2||distance>at+5){
+  if(at===null||distance<at-2||distance>=at){
     document.getElementById("raceStatus").textContent="⏳ Wait for the "+(at||"finish")+" m checkpoint!";
     return;
   }
@@ -620,9 +621,16 @@ function animate(){
     if(fallSequence){
       fallSequence.remaining-=dt;
       if(fallSequence.phase==="fall"&&fallSequence.remaining<=0){
-        fallSequence.phase="bottle";fallSequence.remaining=2.0;
-        document.getElementById("recoveryAction").innerHTML="🧪✨<br><b>USING RECOVERY BOTTLE</b><br><small style=\'font-size:15px\'>Recovery: "+recovery+" • Reviving...</small>";
-        if(car){car.position.y=-1.9;car.rotation.z=Math.PI*1.5;}
+        if(!alive){
+          fallSequence=null;
+          document.getElementById("recoveryAction").innerHTML="💥<br><b>ELIMINATED</b><br><small style=\'font-size:15px\'>No recovery bottle left.</small>";
+          document.getElementById("raceStatus").textContent="💥 You are out of the race.";
+          if(car){car.position.y=-1.9;car.rotation.z=Math.PI*1.5;}
+        }else{
+          fallSequence.phase="bottle";fallSequence.remaining=2.0;
+          document.getElementById("recoveryAction").innerHTML="🧪✨<br><b>USING RECOVERY BOTTLE</b><br><small style=\'font-size:15px\'>Recovery: "+recovery+" • Reviving...</small>";
+          if(car){car.position.y=-1.9;car.rotation.z=Math.PI*1.5;}
+        }
       }else if(fallSequence.phase==="bottle"&&fallSequence.remaining<=0){
         fallSequence=null;document.getElementById("recoveryAction").classList.add("hidden");
         if(Number.isFinite(recoveryResumeAt)){distance=visualDistance=recoveryResumeAt;}
@@ -639,7 +647,7 @@ function animate(){
       distance=Math.max(distance,visualDistance);
       const nextCheckpoint=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
       const checkpointAt=nextCheckpoint?(typeof nextCheckpoint==="number"?nextCheckpoint:nextCheckpoint.at):null;
-      const checkpointReady=checkpointAt!==null && distance>=checkpointAt-2 && distance<=checkpointAt+5;
+      const checkpointReady=checkpointAt!==null && distance>=checkpointAt-2 && distance<checkpointAt;
       const controls=document.getElementById("controls");
       const guide=document.getElementById("jumpGuide");
       if(controls) controls.classList.toggle("hidden",!checkpointReady);
