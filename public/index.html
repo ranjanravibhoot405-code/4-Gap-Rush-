@@ -314,7 +314,7 @@ function init3D(){
   const skyCtx=skyCanvas.getContext("2d");
   const skyGrad=skyCtx.createLinearGradient(0,0,0,256);
   skyGrad.addColorStop(0,"#47718e");skyGrad.addColorStop(.38,"#91b5c8");skyGrad.addColorStop(.72,"#d6d9d5");skyGrad.addColorStop(1,"#b6c5bd");
-  skyCtx.fillStyle=skyGrad;skyCtx.fillRect(0,0,512,256);
+  skyCtx.fillStyle=skyGrad;skyCtx.fillRect(0,0,1024,256);
   for(let c=0;c<70;c++){const x=Math.random()*1024,y=65+Math.random()*190;for(let p=0;p<8;p++){const xx=x+(Math.random()-.5)*100,yy=y+(Math.random()-.5)*28,rr=12+Math.random()*40;const g=skyCtx.createRadialGradient(xx,yy,1,xx,yy,rr);g.addColorStop(0,"rgba(255,255,255,"+(0.035+Math.random()*.07)+")");g.addColorStop(1,"rgba(255,255,255,0)");skyCtx.fillStyle=g;skyCtx.fillRect(xx-rr,yy-rr,rr*2,rr*2);}}
   const skyTex=new THREE.CanvasTexture(skyCanvas);skyTex.colorSpace=THREE.SRGBColorSpace;
   const skyDome=new THREE.Mesh(new THREE.SphereGeometry(420,32,20),new THREE.MeshBasicMaterial({map:skyTex,side:THREE.BackSide,depthWrite:false}));
