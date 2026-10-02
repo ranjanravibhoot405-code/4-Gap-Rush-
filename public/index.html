@@ -189,14 +189,14 @@ function replaceOpponentWithRealistic(g){
   const rawBox=new THREE.Box3().setFromObject(human);
   const rawSize=new THREE.Vector3();
   rawBox.getSize(rawSize);
-  const targetHeight=2.75;
+  const targetHeight=1.9;
   if(rawSize.y>0.01) human.scale.setScalar(targetHeight/rawSize.y);
   const fittedBox=new THREE.Box3().setFromObject(human);
   human.position.set(0,-fittedBox.min.y,0);
 
   // Keep the opponent facing down the track and make dark/unlit materials
   // readable without destroying any existing textures.
-  human.rotation.y=Math.PI;
+  human.rotation.y=0;
   human.traverse(o=>{
     if(!o.isMesh)return;
     o.castShadow=true;
@@ -520,19 +520,19 @@ function setupCameraControls(){
 
 function updateRaceCamera(){
   if(!camera||!car)return;
-  const radius=8.5;
+  const radius=6.5;
   const side=Math.sin(cameraYaw);
   const back=Math.cos(cameraYaw);
   const camX=car.position.x+side*radius;
   const camZ=car.position.z+back*radius;
-  const camY=2.4+cameraPitch*4.0;
+  const camY=2.05+cameraPitch*3.0;
   camera.position.x=camX;
   camera.position.y=camY;
   camera.position.z=camZ;
-  const lookDistance=9;
+  const lookDistance=7.0;
   const targetX=car.position.x-side*lookDistance;
   const targetZ=car.position.z-back*lookDistance;
-  const targetY=1.45+cameraPitch*1.2;
+  const targetY=1.05+cameraPitch*1.0;
   camera.lookAt(targetX,targetY,targetZ);
 }
 
@@ -756,17 +756,17 @@ function init3D(){
   const shirt=new THREE.MeshStandardMaterial({color:girl?0xff79b7:0x2563eb,roughness:.65});
   const shorts=new THREE.MeshStandardMaterial({color:girl?0xfce7f3:0x1e40af,roughness:.8});
   const shoes=new THREE.MeshStandardMaterial({color:0xf8fafc,roughness:.5});
-  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.38,.72,6,12),shirt); torso.position.y=1.55; car.add(torso);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(girl?.31:.32,24,20),skin); head.scale.set(1,1.05,.92); head.position.y=2.35; car.add(head);
+  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.32,.58,6,12),shirt); torso.position.y=1.55; car.add(torso);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(girl?.31:.32,24,20),skin); head.scale.set(1,1.05,.92); head.position.y=2.05; car.add(head);
   const nose=new THREE.Mesh(new THREE.SphereGeometry(.075,10,8),skin);nose.scale.set(.8,1,1.2);nose.position.set(0,2.31,.3);car.add(nose);
   const eyeMat=new THREE.MeshStandardMaterial({color:0x171717,roughness:.4});
   for(const side of [-1,1]){
     const eye=new THREE.Mesh(new THREE.SphereGeometry(.035,10,8),eyeMat);eye.position.set(side*.105,2.39,.286);car.add(eye);
     const ear=new THREE.Mesh(new THREE.SphereGeometry(.075,10,8),skin);ear.position.set(side*.31,2.34,0);car.add(ear);
   }
-  const neck=new THREE.Mesh(new THREE.CylinderGeometry(.12,.14,.22,12),skin);neck.position.y=2.02;car.add(neck);
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(.12,.14,.22,12),skin);neck.position.y=1.78;car.add(neck);
   const hairMat=new THREE.MeshStandardMaterial({color:0x21160f});
-  const hair=new THREE.Mesh(new THREE.SphereGeometry(girl?.34:.36,20,12,0,Math.PI*2,0,Math.PI*.62),hairMat); hair.position.y=2.49; car.add(hair);
+  const hair=new THREE.Mesh(new THREE.SphereGeometry(girl?.34:.36,20,12,0,Math.PI*2,0,Math.PI*.62),hairMat); hair.position.y=2.18; car.add(hair);
   if(girl){const backHair=new THREE.Mesh(new THREE.SphereGeometry(.28,16,12),hairMat);backHair.scale.set(.9,1.25,.65);backHair.position.set(0,2.18,-.12);car.add(backHair);const bow=new THREE.Mesh(new THREE.SphereGeometry(.09,12,8),new THREE.MeshStandardMaterial({color:0xff3b8d}));bow.position.set(.25,2.68,0);car.add(bow);}
   else {const glassesMat=new THREE.MeshStandardMaterial({color:0x111827,metalness:.35,roughness:.3});for(const x of [-.13,.13]){const ring=new THREE.Mesh(new THREE.TorusGeometry(.105,.018,8,20),glassesMat);ring.position.set(x,2.37,.28);car.add(ring);}const bridge=new THREE.Mesh(new THREE.BoxGeometry(.08,.018,.02),glassesMat);bridge.position.set(0,2.37,.29);car.add(bridge);}
   if(girl){const skirt=new THREE.Mesh(new THREE.CylinderGeometry(.22,.38,.3,16),new THREE.MeshStandardMaterial({color:0xf472b6}));skirt.position.y=1.12;car.add(skirt);}
@@ -797,11 +797,11 @@ function init3D(){
         const rawBox=new THREE.Box3().setFromObject(human);
         const rawSize=new THREE.Vector3();
         rawBox.getSize(rawSize);
-        const targetHeight=2.75;
+        const targetHeight=1.9;
         if(rawSize.y>0.01) human.scale.setScalar(targetHeight/rawSize.y);
         const fittedBox=new THREE.Box3().setFromObject(human);
         human.position.set(laneX[targetLane],-fittedBox.min.y,3);
-        human.rotation.y=Math.PI; // Face down the track, away from the following camera.
+        human.rotation.y=0; // Soldier model faces down the track; camera stays behind.
         human.traverse(o=>{
           if(!o.isMesh)return;
           o.castShadow=true;
