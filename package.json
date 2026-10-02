@@ -1,1 +1,1 @@
-{"name":"4-gap-rush-stage2","version":"1.0.0","private":true,"scripts":{"start":"node server.js"},"dependencies":{"express":"^4.21.2","ws":"^8.18.0"}}
+{"name":"4-gap-rush-stage2","version":"1.0.0","private":true,"scripts":{"start":"node server.js"},"dependencies":{"express":"4.21.2","ws":"8.18.0"},"engines":{"node":"22.x","npm":">=10"}}
