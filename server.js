@@ -47,7 +47,8 @@ function roomState(room) {
       dist: p.dist,
       alive: p.alive,
       recovery: p.recovery,
-      finished: p.finished
+      finished: p.finished,
+      lane: p.lane
     }))
   };
 }
@@ -118,6 +119,7 @@ wss.on("connection", ws => {
         recovery: 2,
         alive: true,
         finished: false,
+        lane: room.players.size % 4,
         ws
       });
 
@@ -171,6 +173,7 @@ wss.on("connection", ws => {
         recovery: 2,
         alive: true,
         finished: false,
+        lane: room.players.size % 4,
         ws
       });
 
@@ -246,7 +249,7 @@ wss.on("connection", ws => {
       player.dist = Math.max(player.dist, Math.min(reported, ceiling));
 
       // Keep every racer position synchronized so opponents can be rendered in real time.
-      broadcast(room, { type: "race_positions", players: [...room.players.values()].map(p => ({ id:p.id, dist:p.dist, alive:p.alive, finished:p.finished })) });
+      broadcast(room, { type: "race_positions", players: [...room.players.values()].map(p => ({ id:p.id, dist:p.dist, alive:p.alive, finished:p.finished, lane:p.lane })) });
 
       // Finish only when the runner actually reaches the finish line at 2000 m.
       if (!nextGap && player.dist >= 2000) {
