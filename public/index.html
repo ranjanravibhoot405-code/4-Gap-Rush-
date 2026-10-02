@@ -82,6 +82,8 @@ button:disabled{opacity:.35}
 let ws,myId=null,isHost=false,isReady=false;
 let racing=false,distance=0,recovery=2,alive=true;
 let scene,camera,renderer,car,road;
+let opponents=new Map();
+let opponentStates=new Map();
 let gapObjects=[],roadLines=[];
 let gaps=[];
 let usedChoices=[];
@@ -102,6 +104,84 @@ let fallSequence=null;
 let recoveryResumeAt=null;
 let jumpPromptSince=0;
 let finishGate=null;
+
+
+function makeOpponent(id,name,index){
+  const g=new THREE.Group();
+  const hue=[0xff4d4d,0x22c55e,0xa855f7,0xf59e0b,0x06b6d4,0xec4899,0x84cc16][index%7];
+  const shirt=new THREE.MeshStandardMaterial({color:hue,roughness:.7});
+  const skin=new THREE.MeshStandardMaterial({color:0xd99a72,roughness:.85});
+  const dark=new THREE.MeshStandardMaterial({color:0x202020,roughness:.7});
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.34,.68,5,10),shirt);
+  body.position.y=1.5; g.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.29,16,12),skin);
+  head.position.y=2.25; g.add(head);
+  const hair=new THREE.Mesh(new THREE.SphereGeometry(.32,16,10,0,Math.PI*2,0,Math.PI*.55),dark);
+  hair.position.y=2.39; g.add(hair);
+  for(const side of [-1,1]){
+    const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.085,.58,4,7),skin);
+    arm.position.set(side*.39,1.72,0); arm.rotation.z=side*.12; g.add(arm);
+    const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.12,.7,4,7),dark);
+    leg.position.set(side*.17,.72,0); g.add(leg);
+  }
+  const labelCanvas=document.createElement("canvas");
+  labelCanvas.width=512; labelCanvas.height=96;
+  const ctx=labelCanvas.getContext("2d");
+  ctx.fillStyle="rgba(0,0,0,.72)";ctx.roundRect(4,4,504,88,18);ctx.fill();
+  ctx.fillStyle="#fff";ctx.font="bold 42px Arial";ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(String(name||"Opponent").slice(0,18),256,48);
+  const labelTex=new THREE.CanvasTexture(labelCanvas);
+  const label=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex,transparent:true,depthTest:false}));
+  label.scale.set(2.8,.52,1);label.position.set(0,3.05,0);g.add(label);
+  g.userData={id,name,baseX:((index%3)-1)*1.7};
+  g.position.set(g.userData.baseX,0,3);
+  scene.add(g);
+  opponents.set(id,g);
+  return g;
+}
+
+function syncOpponents(players){
+  if(!scene) return;
+  const active=new Set();
+  players.forEach((p,index)=>{
+    if(p.id===myId) return;
+    active.add(p.id);
+    let g=opponents.get(p.id);
+    if(!g) g=makeOpponent(p.id,p.name,index);
+    opponentStates.set(p.id,{dist:Number(p.dist)||0,alive:p.alive!==false,finished:!!p.finished});
+    g.visible=p.alive!==false && !p.finished;
+    if(p.finished) g.visible=false;
+  });
+  opponents.forEach((g,id)=>{
+    if(!active.has(id)){
+      scene.remove(g);
+      opponents.delete(id);
+      opponentStates.delete(id);
+    }
+  });
+}
+
+function updateOpponents(){
+  if(!scene||!racing) return;
+  opponentStates.forEach((st,id)=>{
+    const g=opponents.get(id);
+    if(!g) return;
+    if(!st.alive||st.finished){g.visible=false;return;}
+    g.visible=true;
+    // Same world scale as the player's runner: 10 world units = 100 m.
+    const dz=(st.dist-distance)/10;
+    g.position.z=3-dz;
+    g.position.x=g.userData.baseX;
+    const runT=Date.now()*.009+id.length;
+    g.position.y=Math.max(0,Math.sin(runT*2)*.035);
+    g.rotation.z=Math.sin(runT)*.012;
+    g.children.forEach((child,i)=>{
+      if(child.type==="Mesh" && i>2) child.rotation.x=Math.sin(runT+(i%2)*Math.PI)*.35;
+    });
+    // Don't render an opponent far behind/ahead outside the useful view.
+    g.visible=Math.abs(dz)<90;
+  });
+}
 
 function connect(){
   const protocol=location.protocol==="https:"?"wss:":"ws:";
@@ -166,6 +246,7 @@ function connect(){
       usedChoices=[];
       lastProgressSent=0;
       init3D();
+      syncOpponents([]);
       document.getElementById("controls").classList.add("hidden");
       document.getElementById("jumpGuide").classList.add("hidden");
       document.getElementById("raceStatus").textContent="🏁 Race started!";
@@ -660,6 +741,7 @@ function animate(){
       const whole=Math.floor(distance);
       if(whole>lastStepShown){lastStepShown=whole;updateHUD();}
     }
+    updateOpponents();
     const movement=visualDistance/10+sceneryClock;
 
     // Move and recycle roadside props toward the runner as distance advances.
