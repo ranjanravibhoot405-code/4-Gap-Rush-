@@ -63,7 +63,7 @@ button:disabled{opacity:.35}
 <b id="distance">Distance: 0 / 2000</b>
 <p id="raceTimer" style="font-size:20px;font-weight:bold;color:#ffd600;margin:5px">TIME: 00:00.00</p>
 <p id="recovery">Recovery: 2</p>
-<p id="nextGapHud">NEXT GAP: 400 m</p>
+<p id="nextGapHud">NEXT GAP: 400 m</p><p id="boostHud" style="font-size:18px;font-weight:bold;color:#50f6c5;margin:5px">BOOST: READY AFTER SUCCESSFUL JUMP</p>
 </div>
 <div id="jumpGuide" class="hidden"><b id="pitTitle">⚠️ BIG PIT AHEAD</b><small id="pitInfo">Choose jump distance</small></div>
 <div id="controls" class="hidden">
@@ -117,6 +117,9 @@ const laneX=[-3,-1,1,3];
 let opponentModelTemplate=null;
 let opponentModelLoading=false;
 let opponentAnimations=[];
+let boostTimer=0;
+let boostTotal=0;
+let boostFlashTimer=0;
 
 
 function makeOpponent(id,name,index){
@@ -327,9 +330,9 @@ function connect(){
         document.getElementById("jumpGuide").classList.add("hidden");
       } else {
         distance=m.dist;visualDistance=m.dist;lastFrame=0;fallTimer=0;
-        if((m.result==="nitro"||m.result==="skate")&&jumpTimer<=0)jumpTimer=0.8;
+        if((m.result==="nitro"||m.result==="skate")&&jumpTimer<=0){jumpTimer=0.8; boostTimer=3.5; boostTotal=3.5; boostFlashTimer=1.2; document.getElementById("raceStatus").textContent="🚀 SPEED BOOST! OVERTAKE NOW!";}
         renderJumpButtons();
-        document.getElementById("raceStatus").textContent=m.result==="nitro"?"🚀 PERFECT! NITRO BOOST!":m.result==="skate"?"🛹 Safe jump!":m.result==="finish"?"🏆 FINISHED!":"";
+        document.getElementById("raceStatus").textContent=m.result==="nitro"?"🚀 PERFECT! SPEED BOOST!":m.result==="skate"?"🚀 SUCCESSFUL JUMP — SPEED BOOST!":m.result==="finish"?"🏆 FINISHED!":"";
       }
       updateHUD();
     }
@@ -839,13 +842,17 @@ function animate(){
         recoveryResumeAt=null;lastFrame=0;
         if(car){car.position.set(0,0,3);car.rotation.set(0,0,0);}
         document.getElementById("raceStatus").textContent="🏃 RECOVERED! RACE RESUMED!";
+        boostTimer=0;boostFlashTimer=0;
       }
     }
     if(alive&&!fallSequence){
+      if(boostTimer>0) boostTimer=Math.max(0,boostTimer-dt);
+      const speedMultiplier=boostTimer>0?1.85:1;
+      const travelSpeed=12*speedMultiplier;
       const upcoming=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
       const target=upcoming?(typeof upcoming==="number"?upcoming:upcoming.at):2000;
-      if(visualDistance<target-2) visualDistance=Math.min(target-2,visualDistance+dt*12);
-      else if(!upcoming) visualDistance=Math.min(2000,visualDistance+dt*12);
+      if(visualDistance<target-2) visualDistance=Math.min(target-2,visualDistance+dt*travelSpeed);
+      else if(!upcoming) visualDistance=Math.min(2000,visualDistance+dt*travelSpeed);
       distance=Math.max(distance,visualDistance);
       const nextCheckpoint=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
       const checkpointAt=nextCheckpoint?(typeof nextCheckpoint==="number"?nextCheckpoint:nextCheckpoint.at):null;
@@ -860,6 +867,20 @@ function animate(){
       if(now-lastProgressSent>150){
         send({type:"progress",dist:distance});
         lastProgressSent=now;
+      }
+      const boostHud=document.getElementById("boostHud");
+      if(boostHud){
+        if(boostTimer>0){
+          boostHud.textContent="🚀 SPEED BOOST: "+boostTimer.toFixed(1)+"s";
+          boostHud.style.color="#ffd600";
+        }else{
+          boostHud.textContent="BOOST: Ready after next successful jump";
+          boostHud.style.color="#50f6c5";
+        }
+      }
+      if(boostFlashTimer>0){
+        boostFlashTimer=Math.max(0,boostFlashTimer-dt);
+        document.getElementById("raceStatus").textContent="🚀 SPEED BOOST! OVERTAKE NOW!";
       }
       const whole=Math.floor(distance);
       if(whole>lastStepShown){lastStepShown=whole;updateHUD();}
