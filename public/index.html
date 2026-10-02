@@ -149,7 +149,7 @@ function makeOpponent(id,name,index){
   const labelTex=new THREE.CanvasTexture(labelCanvas);
   const label=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex,transparent:true,depthTest:false}));
   label.scale.set(2.8,.52,1);label.position.set(0,3.05,0);g.add(label);
-  g.userData={id,name,lane:index%4,baseX:laneX[index%4],realistic:false};
+  
   g.position.set(g.userData.baseX,0,3);
   scene.add(g);
   opponents.set(id,g);
@@ -199,11 +199,19 @@ function syncOpponents(players){
   if(!scene) return;
   const active=new Set();
   players.forEach((p,index)=>{
-    if(p.id===myId) return;
+    if(p.id===myId){
+      playerLane=Number.isFinite(Number(p.lane))?Number(p.lane):1;
+      targetLane=playerLane;
+      if(car) car.position.x=laneX[playerLane];
+      return;
+    }
     active.add(p.id);
     let g=opponents.get(p.id);
     if(!g) g=makeOpponent(p.id,p.name,index);
-    opponentStates.set(p.id,{dist:Number(p.dist)||0,alive:p.alive!==false,finished:!!p.finished});
+    const lane=Number.isFinite(Number(p.lane))?Number(p.lane):(index%4);
+    g.userData.lane=lane;
+    g.userData.baseX=laneX[lane];
+    opponentStates.set(p.id,{dist:Number(p.dist)||0,alive:p.alive!==false,finished:!!p.finished,lane});
     g.visible=p.alive!==false && !p.finished;
     if(p.finished) g.visible=false;
   });
@@ -362,9 +370,12 @@ function connect(){
     if(m.type==="race_positions"){
       (m.players||[]).forEach(p=>{
         if(p.id===myId)return;
-        opponentStates.set(p.id,{dist:Number(p.dist)||0,alive:p.alive!==false,finished:!!p.finished});
+        opponentStates.set(p.id,{dist:Number(p.dist)||0,alive:p.alive!==false,finished:!!p.finished,lane:Number.isFinite(Number(p.lane))?Number(p.lane):1});
         const g=opponents.get(p.id);
-        if(g){g.visible=p.alive!==false&&!p.finished;}
+        if(g){
+          g.visible=p.alive!==false&&!p.finished;
+          if(Number.isFinite(Number(p.lane))){g.userData.lane=Number(p.lane);g.userData.baseX=laneX[Number(p.lane)];}
+        }
       });
     }
 
