@@ -22,7 +22,7 @@ button:disabled{opacity:.35}
 #game canvas{width:100%;height:100%;display:block}
 #hud{position:absolute;top:8px;left:0;right:0;pointer-events:none;text-shadow:0 2px 4px black}
 #controls{position:absolute;bottom:12px;left:0;right:0;display:flex;justify-content:center;gap:6px}
-#controls button{padding:15px 12px;min-width:55px} #jumpGuide{position:absolute;left:5%;right:5%;bottom:76px;background:rgba(5,8,20,.92);border:2px solid #50f6c5;border-radius:12px;padding:8px;z-index:3;text-shadow:none} #jumpGuide b{color:#ffd600} #jumpGuide small{display:block;color:#dbeafe;margin:4px} #controls{z-index:4} #viewHint{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:5;background:rgba(5,8,20,.72);border:1px solid rgba(80,246,197,.7);border-radius:999px;padding:6px 11px;font-size:12px;pointer-events:none}
+#controls button{padding:15px 12px;min-width:55px} #jumpGuide{position:absolute;left:5%;right:5%;bottom:76px;background:rgba(5,8,20,.92);border:2px solid #50f6c5;border-radius:12px;padding:8px;z-index:3;text-shadow:none} #jumpGuide b{color:#ffd600} #jumpGuide small{display:block;color:#dbeafe;margin:4px} #controls{z-index:4} #laneControls{position:absolute;bottom:72px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:10px;z-index:4;pointer-events:auto} #laneControls button{width:52px;height:42px;padding:0;font-size:24px;background:rgba(80,246,197,.92);color:#101426;margin:0} #laneControls span{background:rgba(5,8,20,.72);padding:8px 12px;border-radius:10px;font-size:12px;font-weight:bold} #viewHint{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:5;background:rgba(5,8,20,.72);border:1px solid rgba(80,246,197,.7);border-radius:999px;padding:6px 11px;font-size:12px;pointer-events:none}
 .hidden{display:none}
 </style>
 </head>
@@ -111,6 +111,11 @@ let cameraDragging=false;
 let cameraLastX=0;
 let cameraLastY=0;
 let cameraTouchId=null;
+let playerLane=1;
+let targetLane=1;
+const laneX=[-3,-1,1,3];
+let opponentModelTemplate=null;
+let opponentModelLoading=false;
 
 
 function makeOpponent(id,name,index){
@@ -140,11 +145,47 @@ function makeOpponent(id,name,index){
   const labelTex=new THREE.CanvasTexture(labelCanvas);
   const label=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex,transparent:true,depthTest:false}));
   label.scale.set(2.8,.52,1);label.position.set(0,3.05,0);g.add(label);
-  g.userData={id,name,baseX:((index%3)-1)*1.7};
+  g.userData={id,name,lane:index%4,baseX:laneX[index%4],realistic:false};
   g.position.set(g.userData.baseX,0,3);
   scene.add(g);
   opponents.set(id,g);
+  loadRealisticOpponent(g);
   return g;
+}
+
+function loadRealisticOpponent(g){
+  if(opponentModelTemplate){
+    replaceOpponentWithRealistic(g);
+    return;
+  }
+  if(opponentModelLoading)return;
+  opponentModelLoading=true;
+  import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js")
+    .then(({GLTFLoader})=>{
+      const loader=new GLTFLoader();
+      loader.load("https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb",gltf=>{
+        opponentModelTemplate=gltf.scene;
+        opponentModelLoading=false;
+        opponents.forEach(op=>replaceOpponentWithRealistic(op));
+      },undefined,err=>{opponentModelLoading=false;console.warn("Opponent model failed; fallback retained.",err);});
+    }).catch(()=>{opponentModelLoading=false;});
+}
+
+function replaceOpponentWithRealistic(g){
+  if(!g||g.userData.realistic||!opponentModelTemplate)return;
+  const oldChildren=[...g.children];
+  oldChildren.forEach(ch=>g.remove(ch));
+  const human=opponentModelTemplate.clone(true);
+  human.scale.setScalar(1.12);
+  human.position.set(0,0,0);
+  human.rotation.y=0;
+  human.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+  g.add(human);
+  g.userData.realistic=true;
+  g.userData.human=human;
+  g.userData.mixer=new THREE.AnimationMixer(human);
+  // The shared Soldier scene has no animation clips here, so use the
+  // same natural running cycle from a procedural body sway as a fallback.
 }
 
 function syncOpponents(players){
@@ -362,6 +403,14 @@ function renderJumpButtons(){
   });
   if(usedChoices.length>=4) controls.classList.add("hidden");
 }
+function setLane(dir){
+  targetLane=Math.max(0,Math.min(laneX.length-1,targetLane+dir));
+}
+window.addEventListener("keydown",e=>{
+  if(e.key==="ArrowLeft"||e.key.toLowerCase()==="a")setLane(-1);
+  if(e.key==="ArrowRight"||e.key.toLowerCase()==="d")setLane(1);
+});
+
 function jump(choice){
   if(!racing||!alive||usedChoices.includes(choice))return;
   const next=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
@@ -451,7 +500,7 @@ function init3D(){
   if(renderer){
     renderer.dispose();
     container.innerHTML=
-      '<div id="hud"><b id="distance">Distance: 0 / 2000</b><p id="raceTimer" style="font-size:20px;font-weight:bold;color:#ffd600;margin:5px">TIME: 00:00.00</p><p id="recovery">Recovery: 2</p><p id="nextGapHud">NEXT GAP: 400 m</p></div><div id="jumpGuide"><b id="pitTitle">⚠️ BIG PIT AHEAD</b><small id="pitInfo">Choose jump distance</small></div><div id="viewHint">↔️ DRAG TO LOOK AROUND • 360° VIEW</div><div id="controls"></div>';
+      '<div id="hud"><b id="distance">Distance: 0 / 2000</b><p id="raceTimer" style="font-size:20px;font-weight:bold;color:#ffd600;margin:5px">TIME: 00:00.00</p><p id="recovery">Recovery: 2</p><p id="nextGapHud">NEXT GAP: 400 m</p></div><div id="jumpGuide"><b id="pitTitle">⚠️ BIG PIT AHEAD</b><small id="pitInfo">Choose jump distance</small></div><div id="viewHint">↔️ DRAG TO LOOK AROUND • 360° VIEW</div><div id="laneControls"><button onclick="setLane(-1)">◀</button><span>LANE</span><button onclick="setLane(1)">▶</button></div><div id="controls"></div>';
   }
 
   scene=new THREE.Scene();
@@ -677,7 +726,8 @@ function init3D(){
     const leg=makeLimb(side*.2,1.15,.78,shorts,false); limbs.push({part:leg,phase:side===-1?Math.PI:0,arm:false});
     const shoe=new THREE.Mesh(new THREE.BoxGeometry(.25,.13,.42),shoes);shoe.position.set(side*.2,.12,.12);car.add(shoe);
   }
-  car.position.set(0,0,3); scene.add(car);
+  playerLane=1;targetLane=1;
+  car.position.set(laneX[targetLane],0,3); scene.add(car);
   window.runnerLimbs=limbs;
   // Load a rigged, animated 3D human (Three.js Soldier sample). Keep the existing
   // runner as a visible fallback until the model has loaded.
@@ -689,7 +739,7 @@ function init3D(){
         const oldRunner=car;
         const human=gltf.scene;
         human.scale.setScalar(1.12);
-        human.position.set(0,0,3);
+        human.position.set(laneX[targetLane],0,3);
         human.rotation.y=0; // Face down the track, away from the following camera.
         human.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
         scene.remove(oldRunner);
@@ -798,6 +848,8 @@ function animate(){
       const controls=document.getElementById("controls");
       const guide=document.getElementById("jumpGuide");
       if(controls) controls.classList.toggle("hidden",!checkpointReady);
+      const laneUI=document.getElementById("laneControls");
+      if(laneUI) laneUI.style.display=checkpointReady?"none":"flex";
       if(guide) guide.classList.toggle("hidden",!checkpointReady);
       if(checkpointReady){if(!jumpPromptSince)jumpPromptSince=now;if(now-jumpPromptSince>2200){send({type:"skip_gap"});jumpPromptSince=0;}}else jumpPromptSince=0;
       if(now-lastProgressSent>150){
@@ -856,6 +908,7 @@ function animate(){
         car.rotation.z=Math.sin(p*Math.PI)*.08;
         car.rotation.x=0;
       } else {
+        car.position.x += (laneX[targetLane]-car.position.x)*Math.min(1,dt*10);
         car.position.y=baseY;
         car.rotation.z=Math.sin(runT)*.012;
         car.rotation.x=0;
