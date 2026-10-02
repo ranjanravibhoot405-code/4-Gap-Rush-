@@ -22,7 +22,7 @@ button:disabled{opacity:.35}
 #game canvas{width:100%;height:100%;display:block}
 #hud{position:absolute;top:8px;left:0;right:0;pointer-events:none;text-shadow:0 2px 4px black}
 #controls{position:absolute;bottom:12px;left:0;right:0;display:flex;justify-content:center;gap:6px}
-#controls button{padding:15px 12px;min-width:55px} #jumpGuide{position:absolute;left:5%;right:5%;bottom:76px;background:rgba(5,8,20,.92);border:2px solid #50f6c5;border-radius:12px;padding:8px;z-index:3;text-shadow:none} #jumpGuide b{color:#ffd600} #jumpGuide small{display:block;color:#dbeafe;margin:4px} #controls{z-index:4}
+#controls button{padding:15px 12px;min-width:55px} #jumpGuide{position:absolute;left:5%;right:5%;bottom:76px;background:rgba(5,8,20,.92);border:2px solid #50f6c5;border-radius:12px;padding:8px;z-index:3;text-shadow:none} #jumpGuide b{color:#ffd600} #jumpGuide small{display:block;color:#dbeafe;margin:4px} #controls{z-index:4} #viewHint{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:5;background:rgba(5,8,20,.72);border:1px solid rgba(80,246,197,.7);border-radius:999px;padding:6px 11px;font-size:12px;pointer-events:none}
 .hidden{display:none}
 </style>
 </head>
@@ -104,6 +104,12 @@ let fallSequence=null;
 let recoveryResumeAt=null;
 let jumpPromptSince=0;
 let finishGate=null;
+let cameraYaw=0;
+let cameraPitch=0.18;
+let cameraDragging=false;
+let cameraLastX=0;
+let cameraLastY=0;
+let cameraTouchId=null;
 
 
 function makeOpponent(id,name,index){
@@ -373,6 +379,53 @@ function updateHUD(){
   if(ng) ng.textContent=nextGap?"NEXT GAP: "+Math.ceil(remain)+" m":"FINISH: "+Math.max(0,2000-Math.floor(distance))+" m";
 }
 
+function setupCameraControls(){
+  if(!renderer||!renderer.domElement)return;
+  const el=renderer.domElement;
+  el.style.touchAction="none";
+  const start=(x,y,id=null)=>{
+    cameraDragging=true;cameraLastX=x;cameraLastY=y;cameraTouchId=id;
+  };
+  const move=(x,y)=>{
+    if(!cameraDragging)return;
+    const dx=x-cameraLastX,dy=y-cameraLastY;
+    cameraLastX=x;cameraLastY=y;
+    cameraYaw-=dx*0.008;
+    cameraPitch=Math.max(-0.28,Math.min(0.72,cameraPitch+dy*0.005));
+  };
+  const end=()=>{cameraDragging=false;cameraTouchId=null;};
+  el.addEventListener("pointerdown",e=>{start(e.clientX,e.clientY,e.pointerId);try{el.setPointerCapture(e.pointerId)}catch{}});
+  el.addEventListener("pointermove",e=>move(e.clientX,e.clientY));
+  el.addEventListener("pointerup",end);
+  el.addEventListener("pointercancel",end);
+  el.addEventListener("wheel",e=>{
+    cameraYaw-=e.deltaX*0.004;
+    cameraPitch=Math.max(-0.28,Math.min(0.72,cameraPitch+e.deltaY*0.002));
+    e.preventDefault();
+  },{passive:false});
+  el.addEventListener("dblclick",()=>{
+    cameraYaw=0;cameraPitch=0.18;
+  });
+}
+
+function updateRaceCamera(){
+  if(!camera||!car)return;
+  const radius=8.5;
+  const side=Math.sin(cameraYaw);
+  const back=Math.cos(cameraYaw);
+  const camX=car.position.x+side*radius;
+  const camZ=car.position.z+back*radius;
+  const camY=2.4+cameraPitch*4.0;
+  camera.position.x=camX;
+  camera.position.y=camY;
+  camera.position.z=camZ;
+  const lookDistance=9;
+  const targetX=car.position.x-side*lookDistance;
+  const targetZ=car.position.z-back*lookDistance;
+  const targetY=1.45+cameraPitch*1.2;
+  camera.lookAt(targetX,targetY,targetZ);
+}
+
 function init3D(){
   if(animationFrameId) cancelAnimationFrame(animationFrameId);
   // Clear references from any previous race scene before rebuilding.
@@ -385,7 +438,7 @@ function init3D(){
   if(renderer){
     renderer.dispose();
     container.innerHTML=
-      '<div id="hud"><b id="distance">Distance: 0 / 2000</b><p id="raceTimer" style="font-size:20px;font-weight:bold;color:#ffd600;margin:5px">TIME: 00:00.00</p><p id="recovery">Recovery: 2</p><p id="nextGapHud">NEXT GAP: 400 m</p></div><div id="jumpGuide"><b id="pitTitle">⚠️ BIG PIT AHEAD</b><small id="pitInfo">Choose jump distance</small></div><div id="controls"></div>';
+      '<div id="hud"><b id="distance">Distance: 0 / 2000</b><p id="raceTimer" style="font-size:20px;font-weight:bold;color:#ffd600;margin:5px">TIME: 00:00.00</p><p id="recovery">Recovery: 2</p><p id="nextGapHud">NEXT GAP: 400 m</p></div><div id="jumpGuide"><b id="pitTitle">⚠️ BIG PIT AHEAD</b><small id="pitInfo">Choose jump distance</small></div><div id="viewHint">↔️ DRAG TO LOOK AROUND • 360° VIEW</div><div id="controls"></div>';
   }
 
   scene=new THREE.Scene();
@@ -409,6 +462,7 @@ function init3D(){
 
   renderer=new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(container.clientWidth,container.clientHeight);
+  setupCameraControls();
   renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
@@ -741,6 +795,7 @@ function animate(){
       if(whole>lastStepShown){lastStepShown=whole;updateHUD();}
     }
     updateOpponents();
+    updateRaceCamera();
     const movement=visualDistance/10+sceneryClock;
 
     // Move and recycle roadside props toward the runner as distance advances.
