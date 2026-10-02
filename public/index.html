@@ -116,6 +116,7 @@ let targetLane=1;
 const laneX=[-3,-1,1,3];
 let opponentModelTemplate=null;
 let opponentModelLoading=false;
+let opponentAnimations=[];
 
 
 function makeOpponent(id,name,index){
@@ -165,6 +166,7 @@ function loadRealisticOpponent(g){
       const loader=new GLTFLoader();
       loader.load("https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb",gltf=>{
         opponentModelTemplate=gltf.scene;
+        opponentAnimations=gltf.animations||[];
         opponentModelLoading=false;
         opponents.forEach(op=>replaceOpponentWithRealistic(op));
       },undefined,err=>{opponentModelLoading=false;console.warn("Opponent model failed; fallback retained.",err);});
@@ -174,7 +176,7 @@ function loadRealisticOpponent(g){
 function replaceOpponentWithRealistic(g){
   if(!g||g.userData.realistic||!opponentModelTemplate)return;
   const oldChildren=[...g.children];
-  oldChildren.forEach(ch=>g.remove(ch));
+  oldChildren.forEach(ch=>{if(ch.type!=="Sprite")g.remove(ch);});
   const human=opponentModelTemplate.clone(true);
   human.scale.setScalar(1.12);
   human.position.set(0,0,0);
@@ -184,8 +186,10 @@ function replaceOpponentWithRealistic(g){
   g.userData.realistic=true;
   g.userData.human=human;
   g.userData.mixer=new THREE.AnimationMixer(human);
-  // The shared Soldier scene has no animation clips here, so use the
-  // same natural running cycle from a procedural body sway as a fallback.
+  if(opponentAnimations.length){
+    const runClip=opponentAnimations.find(a=>/run/i.test(a.name))||opponentAnimations[0];
+    g.userData.mixer.clipAction(runClip).play();
+  }
 }
 
 function syncOpponents(players){
@@ -221,6 +225,7 @@ function updateOpponents(){
     g.position.z=3-dz;
     g.position.x=g.userData.baseX;
     const runT=Date.now()*.009+id.length;
+    if(g.userData.mixer)g.userData.mixer.update(0.016);
     g.position.y=Math.max(0,Math.sin(runT*2)*.035);
     g.rotation.z=Math.sin(runT)*.012;
     g.children.forEach((child,i)=>{
