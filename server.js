@@ -245,6 +245,9 @@ wss.on("connection", ws => {
       const ceiling = nextGap ? nextGap.at : 2000;
       player.dist = Math.max(player.dist, Math.min(reported, ceiling));
 
+      // Keep every racer position synchronized so opponents can be rendered in real time.
+      broadcast(room, { type: "race_positions", players: [...room.players.values()].map(p => ({ id:p.id, dist:p.dist, alive:p.alive, finished:p.finished })) });
+
       // Finish only when the runner actually reaches the finish line at 2000 m.
       if (!nextGap && player.dist >= 2000) {
         player.dist = 2000;
