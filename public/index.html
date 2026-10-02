@@ -84,6 +84,7 @@ let racing=false,distance=0,recovery=2,alive=true;
 let scene,camera,renderer,car,road;
 let opponents=new Map();
 let opponentStates=new Map();
+let latestPlayers=[];
 let gapObjects=[],roadLines=[];
 let gaps=[];
 let usedChoices=[];
@@ -222,6 +223,8 @@ function connect(){
         updateHUD();
       }
 
+      latestPlayers=m.players||[];
+      syncOpponents(latestPlayers);
       m.players.forEach(p=>{
         const li=document.createElement("li");
         li.textContent=p.name+
@@ -252,6 +255,7 @@ function connect(){
       usedChoices=[];
       lastProgressSent=0;
       init3D();
+      syncOpponents(latestPlayers);
       document.getElementById("controls").classList.add("hidden");
       document.getElementById("jumpGuide").classList.add("hidden");
       document.getElementById("raceStatus").textContent="🏁 Race started!";
@@ -304,6 +308,15 @@ function connect(){
       const resultSub=document.createElement("p");resultSub.textContent="FINAL RACE RESULTS";resultOverlay.appendChild(resultSub);
       results.forEach((p,i)=>{const line=document.createElement("p");line.style.cssText="font-size:20px;margin:8px";line.textContent=(i+1)+". "+p.name+" — "+(p.finished?fmt(p.time):"DNF");resultOverlay.appendChild(line);});
       const closeResult=document.createElement("button");closeResult.textContent="BACK TO LOBBY";closeResult.onclick=()=>{resultOverlay.remove();returnLobby();};resultOverlay.appendChild(closeResult);
+    }
+
+    if(m.type==="race_positions"){
+      (m.players||[]).forEach(p=>{
+        if(p.id===myId)return;
+        opponentStates.set(p.id,{dist:Number(p.dist)||0,alive:p.alive!==false,finished:!!p.finished});
+        const g=opponents.get(p.id);
+        if(g){g.visible=p.alive!==false&&!p.finished;}
+      });
     }
 
     if(m.type==="error")status(m.message);
