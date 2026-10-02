@@ -189,7 +189,7 @@ function replaceOpponentWithRealistic(g){
   const rawBox=new THREE.Box3().setFromObject(human);
   const rawSize=new THREE.Vector3();
   rawBox.getSize(rawSize);
-  const targetHeight=1.05;
+  const targetHeight=0.75;
   if(rawSize.y>0.01) human.scale.setScalar(targetHeight/rawSize.y);
   const fittedBox=new THREE.Box3().setFromObject(human);
   human.position.set(0,-fittedBox.min.y,0);
@@ -797,7 +797,7 @@ function init3D(){
         const rawBox=new THREE.Box3().setFromObject(human);
         const rawSize=new THREE.Vector3();
         rawBox.getSize(rawSize);
-        const targetHeight=1.05;
+        const targetHeight=0.75;
         if(rawSize.y>0.01) human.scale.setScalar(targetHeight/rawSize.y);
         const fittedBox=new THREE.Box3().setFromObject(human);
         human.position.set(laneX[targetLane],-fittedBox.min.y,3);
