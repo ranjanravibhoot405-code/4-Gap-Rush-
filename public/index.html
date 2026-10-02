@@ -129,11 +129,11 @@ function makeOpponent(id,name,index){
   const skin=new THREE.MeshStandardMaterial({color:0xd99a72,roughness:.85});
   const dark=new THREE.MeshStandardMaterial({color:0x202020,roughness:.7});
   const body=new THREE.Mesh(new THREE.CapsuleGeometry(.34,.68,5,10),shirt);
-  body.position.y=1.5; g.add(body);
+  body.position.y=1.18; g.add(body);
   const head=new THREE.Mesh(new THREE.SphereGeometry(.29,16,12),skin);
-  head.position.y=2.25; g.add(head);
+  head.position.y=1.78; g.add(head);
   const hair=new THREE.Mesh(new THREE.SphereGeometry(.32,16,10,0,Math.PI*2,0,Math.PI*.55),dark);
-  hair.position.y=2.39; g.add(hair);
+  hair.position.y=1.92; g.add(hair);
   for(const side of [-1,1]){
     const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.085,.58,4,7),skin);
     arm.position.set(side*.39,1.72,0); arm.rotation.z=side*.12; g.add(arm);
@@ -148,7 +148,7 @@ function makeOpponent(id,name,index){
   ctx.fillText(String(name||"Opponent").slice(0,18),256,48);
   const labelTex=new THREE.CanvasTexture(labelCanvas);
   const label=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex,transparent:true,depthTest:false}));
-  label.scale.set(2.8,.52,1);label.position.set(0,3.05,0);g.add(label);
+  label.scale.set(2.8,.52,1);label.position.set(0,2.45,0);g.add(label);
   
   g.position.set(g.userData.baseX,0,3);
   scene.add(g);
@@ -189,7 +189,7 @@ function replaceOpponentWithRealistic(g){
   const rawBox=new THREE.Box3().setFromObject(human);
   const rawSize=new THREE.Vector3();
   rawBox.getSize(rawSize);
-  const targetHeight=1.9;
+  const targetHeight=1.45;
   if(rawSize.y>0.01) human.scale.setScalar(targetHeight/rawSize.y);
   const fittedBox=new THREE.Box3().setFromObject(human);
   human.position.set(0,-fittedBox.min.y,0);
@@ -520,19 +520,19 @@ function setupCameraControls(){
 
 function updateRaceCamera(){
   if(!camera||!car)return;
-  const radius=6.5;
+  const radius=10.5;
   const side=Math.sin(cameraYaw);
   const back=Math.cos(cameraYaw);
   const camX=car.position.x+side*radius;
   const camZ=car.position.z+back*radius;
-  const camY=2.05+cameraPitch*3.0;
+  const camY=2.55+cameraPitch*3.0;
   camera.position.x=camX;
   camera.position.y=camY;
   camera.position.z=camZ;
-  const lookDistance=7.0;
+  const lookDistance=9.0;
   const targetX=car.position.x-side*lookDistance;
   const targetZ=car.position.z-back*lookDistance;
-  const targetY=1.05+cameraPitch*1.0;
+  const targetY=0.95+cameraPitch*1.0;
   camera.lookAt(targetX,targetY,targetZ);
 }
 
@@ -797,11 +797,11 @@ function init3D(){
         const rawBox=new THREE.Box3().setFromObject(human);
         const rawSize=new THREE.Vector3();
         rawBox.getSize(rawSize);
-        const targetHeight=1.9;
+        const targetHeight=1.45;
         if(rawSize.y>0.01) human.scale.setScalar(targetHeight/rawSize.y);
         const fittedBox=new THREE.Box3().setFromObject(human);
         human.position.set(laneX[targetLane],-fittedBox.min.y,3);
-        human.rotation.y=0; // Soldier model faces down the track; camera stays behind.
+        human.rotation.y=Math.PI; // Soldier faces down the track, away from the camera.
         human.traverse(o=>{
           if(!o.isMesh)return;
           o.castShadow=true;
