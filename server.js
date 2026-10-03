@@ -231,10 +231,23 @@ wss.on("connection", ws => {
       room.startedAt = Date.now();
       room.players.forEach(p => { p.usedChoices = []; p.gapIndex = 0; p.dist = 0; p.recovery = 2; p.alive = true; p.finished = false; p.finishTime = null; });
 
-      return broadcast(room, {
+      const racePlayers = [...room.players.values()].map(p => ({
+        id: p.id,
+        name: p.name,
+        dist: 0,
+        alive: true,
+        finished: false,
+        lane: p.lane
+      }));
+
+      // Send the complete initial race snapshot in the same packet.
+      // This prevents the joining/opponent phone from creating its race scene
+      // before it knows the authoritative gap widths and all player lanes.
+      broadcast(room, {
         type: "race_start",
         startedAt: room.startedAt,
-        gaps: room.gaps.map(g => g.at)
+        gaps: room.gaps.map(g => ({ at: g.at, width: g.width })),
+        players: racePlayers
       });
     }
 
