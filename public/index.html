@@ -150,7 +150,7 @@ function makeOpponent(id,name,index){
   const label=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex,transparent:true,depthTest:false}));
   label.scale.set(2.8,.52,1);label.position.set(0,2.45,0);g.add(label);
   
-  g.position.set(g.userData.baseX,0,3);
+  g.position.set(0,0,3);
   scene.add(g);
   opponents.set(id,g);
   loadRealisticOpponent(g);
@@ -332,7 +332,7 @@ function connect(){
       // Use the server's common start timestamp so both phones show the
       // same race clock instead of starting their timer at different
       // WebSocket message arrival times.
-      raceStartedAt=performance.now() - Math.max(0,performance.timeOrigin + Date.now() - Number(m.startedAt||Date.now()));
+      raceStartedAt=Number(m.startedAt)||Date.now();
       showRacePage();
 
       // The server now sends the complete authoritative checkpoint snapshot.
@@ -352,7 +352,7 @@ function connect(){
       alive=true;
       usedChoices=[];
       lastProgressSent=0;
-      playerLane=Number(latestPlayers.find(p=>p.id===myId)?.lane ?? 1);
+      playerLane=Math.max(0,Math.min(laneX.length-1,Number(latestPlayers.find(p=>p.id===myId)?.lane ?? 1)));
       targetLane=playerLane;
       init3D();
       syncOpponents(latestPlayers);
@@ -411,35 +411,15 @@ function connect(){
     }
 
     if(m.type==="race_positions"){
-      // Use the server's checkpoint data so both phones render the same gaps.
+      // This is the authoritative multiplayer snapshot. Store it even if the
+      // renderer is still rebuilding, then apply it as soon as the scene exists.
       if(Array.isArray(m.gaps)&&m.gaps.length){
         gaps=m.gaps.map(g=>typeof g==="number"?g:{at:Number(g.at),width:Number(g.width)});
       }
-      (m.players||[]).forEach((p,index)=>{
-        if(p.id===myId)return;
-
-        const lane=Number.isFinite(Number(p.lane))
-          ? Math.max(0,Math.min(laneX.length-1,Number(p.lane)))
-          : index%laneX.length;
-
-        opponentStates.set(p.id,{
-          dist:Number(p.dist)||0,
-          alive:p.alive!==false,
-          finished:!!p.finished,
-          lane
-        });
-
-        // Do not depend only on room_state timing. If a position packet arrives
-        // before the opponent group exists, create it immediately.
-        let g=opponents.get(p.id);
-        if(!g && scene && racing) g=makeOpponent(p.id,p.name||"Opponent",index);
-
-        if(g){
-          g.userData.lane=lane;
-          g.userData.baseX=laneX[lane];
-          g.visible=p.alive!==false&&!p.finished;
-        }
-      });
+      if(Array.isArray(m.players)&&m.players.length){
+        latestPlayers=m.players;
+      }
+      if(scene && racing) syncOpponents(latestPlayers);
     }
 
     if(m.type==="error")status(m.message);
@@ -820,7 +800,8 @@ function init3D(){
     const leg=makeLimb(side*.2,1.15,.78,shorts,false); limbs.push({part:leg,phase:side===-1?Math.PI:0,arm:false});
     const shoe=new THREE.Mesh(new THREE.BoxGeometry(.25,.13,.42),shoes);shoe.position.set(side*.2,.12,.12);car.add(shoe);
   }
-  playerLane=1;targetLane=1;
+  playerLane=Math.max(0,Math.min(laneX.length-1,Number(playerLane)||0));
+  targetLane=Math.max(0,Math.min(laneX.length-1,Number(targetLane)||playerLane));
   car.position.set(laneX[targetLane],0,3); scene.add(car);
   window.runnerLimbs=limbs;
   // Load a rigged, animated 3D human (Three.js Soldier sample). Keep the existing
@@ -984,7 +965,7 @@ function animate(){
       if(guide) guide.classList.toggle("hidden",!checkpointReady);
       if(checkpointReady){if(!jumpPromptSince)jumpPromptSince=now;if(now-jumpPromptSince>2200){send({type:"skip_gap"});jumpPromptSince=0;}}else jumpPromptSince=0;
       if(now-lastProgressSent>150){
-        send({type:"progress",dist:distance});
+        send({type:"progress",dist:distance,lane:targetLane});
         lastProgressSent=now;
       }
       const boostHud=document.getElementById("boostHud");
