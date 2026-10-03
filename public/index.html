@@ -397,6 +397,10 @@ function connect(){
     }
 
     if(m.type==="race_positions"){
+      // Use the server's checkpoint data so both phones render the same gaps.
+      if(Array.isArray(m.gaps)&&m.gaps.length){
+        gaps=m.gaps.map(g=>typeof g==="number"?g:{at:Number(g.at),width:Number(g.width)});
+      }
       (m.players||[]).forEach((p,index)=>{
         if(p.id===myId)return;
 
