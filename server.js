@@ -312,7 +312,7 @@ wss.on("connection", ws => {
       if (!room.started || room.ended || !player.alive || player.finished) return;
       player.gapIndex = player.gapIndex || 0;
       const gap = room.gaps[player.gapIndex];
-      if (!gap || player.dist < gap.at - 2 || player.dist > gap.at) return;
+      if (!gap || player.dist < gap.at - 18 || player.dist > gap.at + 2) return;
       player.gapIndex++;
       const hadRecovery = player.recovery > 0;
       if (hadRecovery) player.recovery--;
@@ -343,8 +343,8 @@ wss.on("connection", ws => {
 
       // A jump is valid only when the runner reaches the 400 m checkpoint
       // (within 2 m before it, through 5 m after it).
-      if (player.dist < gap.at - 2 || player.dist > gap.at) {
-        return send(ws, { type:"error", message:"Jump is available only in the 2 m zone before the " + gap.at + " m gap." });
+      if (player.dist < gap.at - 18 || player.dist > gap.at + 2) {
+        return send(ws, { type:"error", message:"Jump is available from 18 m before to 2 m after the " + gap.at + " m gap." });
       }
 
       const choice = Number(m.choice);
