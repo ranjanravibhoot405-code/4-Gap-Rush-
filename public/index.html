@@ -374,6 +374,33 @@ function connect(){
       
     }
 
+    if(m.type==="race_sync"){
+      // Recovery path for a phone that missed the initial race_start packet.
+      // If already racing, only update the authoritative multiplayer state.
+      if(Array.isArray(m.gaps)&&m.gaps.length){
+        gaps=m.gaps.map(g=>typeof g==="number"?g:{at:Number(g.at),width:Number(g.width)});
+      }
+      if(Array.isArray(m.players)&&m.players.length){
+        latestPlayers=m.players;
+      }
+
+      if(!racing){
+        racing=true;
+        const rawStart=Number(m.startedAt);
+        raceStartedAt=rawStart>0 ? (rawStart<100000000000 ? rawStart*1000 : rawStart) : Date.now();
+        distance=0; visualDistance=0; lastFrame=0; lastStepShown=0;
+        recovery=2; alive=true; usedChoices=[]; lastProgressSent=0;
+        playerLane=Math.max(0,Math.min(laneX.length-1,Number(latestPlayers.find(p=>p.id===myId)?.lane ?? 1)));
+        targetLane=playerLane;
+        showRacePage();
+        init3D();
+        syncOpponents(latestPlayers);
+        document.getElementById("raceStatus").textContent="🏁 Race synchronized!";
+      }else if(scene){
+        syncOpponents(latestPlayers);
+      }
+    }
+
     if(m.type==="jump_result"){
       recovery=Math.max(0,Number(m.recovery)||0);
       if(typeof m.alive==="boolean") alive=m.alive;
