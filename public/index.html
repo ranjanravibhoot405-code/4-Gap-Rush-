@@ -886,23 +886,30 @@ function init3D(){
     floor.position.set(0,-1.2,0);floor.receiveShadow=true;ravine.add(floor);
     // Rough cut-earth walls on both sides and both ends of the opening.
     for(const side of [-1,1]){
-      const wall=new THREE.Mesh(new THREE.BoxGeometry(1.2,5.8,15.5),cliffMat);
-      wall.position.set(side*6.1,-2.25,0);wall.rotation.z=side*.08;wall.receiveShadow=true;ravine.add(wall);
+      // Side walls stay outside the 12m road opening so they cannot
+      // become a full-screen wall in the runner's forward view.
+      const wall=new THREE.Mesh(new THREE.BoxGeometry(.8,4.8,15.5),cliffMat);
+      wall.position.set(side*6.55,-2.35,0);wall.rotation.z=side*.06;wall.receiveShadow=true;ravine.add(wall);
       for(let n=0;n<16;n++){
         const boulder=new THREE.Mesh(new THREE.DodecahedronGeometry(.25+Math.random()*.65,0),rubbleMats[Math.floor(Math.random()*rubbleMats.length)]);
         boulder.scale.set(1.2,.7,.8);boulder.position.set(side*(5.1+Math.random()*.9),-1.0-Math.random()*3.1,-4.3+Math.random()*8.6);boulder.rotation.set(Math.random(),Math.random()*3,Math.random());boulder.castShadow=true;ravine.add(boulder);
       }
     }
+    // IMPORTANT: do NOT put a solid wall across the road at either end.
+    // A previous cut-face mesh filled the whole 12.2m road opening, so the
+    // third-person camera saw a giant black/brown wall instead of an open gap.
+    // Keep only low broken earth lips around the edges and warning stripes.
     for(const z of [-4.55,4.55]){
-      const cutFace=new THREE.Mesh(new THREE.BoxGeometry(12.2,4.2,.65),cliffMat);
-      cutFace.position.set(0,-2.0,z);cutFace.receiveShadow=true;ravine.add(cutFace);
-      // Broken, uneven earth lip at both edges of the pit.
       for(let n=0;n<18;n++){
         const chunk=new THREE.Mesh(new THREE.DodecahedronGeometry(.12+Math.random()*.28,0),ledgeMat);
-        chunk.position.set(-5.9+Math.random()*11.8,-.12+Math.random()*.25,z+(Math.random()-.5)*.5);chunk.rotation.set(Math.random(),Math.random()*3,Math.random());ravine.add(chunk);
+        const edgeX=-5.9+Math.random()*11.8;
+        chunk.position.set(edgeX,-.12+Math.random()*.25,z+(Math.random()-.5)*.5);
+        chunk.rotation.set(Math.random(),Math.random()*3,Math.random());
+        ravine.add(chunk);
       }
       const stripe=new THREE.Mesh(new THREE.BoxGeometry(12,.09,.16),warningMat);
-      stripe.position.set(0,.12,z);ravine.add(stripe);
+      stripe.position.set(0,.12,z);
+      ravine.add(stripe);
     }
     ravine.position.set(0,0,-at/10);scene.add(ravine);gapObjects.push(ravine);
   });
