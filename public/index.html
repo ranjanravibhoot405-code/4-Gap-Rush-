@@ -1048,7 +1048,7 @@ function animate(){
     // Road remains fixed in world space. Gap objects, lane marks and
     // roadside scenery are positioned from the player's authoritative distance.
     roadLines.forEach((line,i)=>{
-      line.position.z=3-((i*7+movement)%280);
+      // Track is fixed in world space; the runner/camera move through it.\n      // Keep lane markings on their original road coordinates.\n      line.position.z=-Math.floor(i/3)*7;
       // Center markings must stop at the pit too; never draw a stripe over empty space.
       const overPit=gaps.some(g=>{
         const at=typeof g==="number"?g:g.at;
