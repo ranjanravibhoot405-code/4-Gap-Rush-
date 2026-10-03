@@ -22,6 +22,21 @@ const broadcast = (room, msg) => {
   room.players.forEach(p => send(p.ws, msg));
 };
 
+function raceSnapshot(room) {
+  return {
+    type: "race_positions",
+    gaps: room.gaps.map(g => ({ at: g.at, width: g.width })),
+    players: [...room.players.values()].map(p => ({
+      id: p.id,
+      name: p.name,
+      dist: p.dist,
+      alive: p.alive,
+      finished: p.finished,
+      lane: p.lane
+    }))
+  };
+}
+
 function makeCode() {
   let chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code;
@@ -261,20 +276,12 @@ wss.on("connection", ws => {
       const ceiling = nextGap ? nextGap.at : 2000;
       player.dist = Math.max(player.dist, Math.min(reported, ceiling));
 
-      // Keep the complete authoritative race snapshot synchronized so every
-      // phone has the same track checkpoints and opponent positions.
-      broadcast(room, {
-        type: "race_positions",
-        gaps: room.gaps.map(g => ({ at:g.at, width:g.width })),
-        players: [...room.players.values()].map(p => ({
-          id:p.id,
-          name:p.name,
-          dist:p.dist,
-          alive:p.alive,
-          finished:p.finished,
-          lane:p.lane
-        }))
-      });
+      if(Number.isFinite(Number(m.lane))){
+        player.lane=Math.max(0,Math.min(3,Math.floor(Number(m.lane))));
+      }
+
+      // Send an immediate authoritative snapshot after each progress update.
+      broadcast(room, raceSnapshot(room));
 
       // Finish only when the runner actually reaches the finish line at 2000 m.
       if (!nextGap && player.dist >= 2000) {
@@ -376,6 +383,15 @@ wss.on("connection", ws => {
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
+
+// Keep multiplayer state synchronized independently of browser animation timing.
+// A phone that renders slowly, pauses briefly, or misses a progress packet still
+// receives the current track checkpoints and every opponent's position.
+setInterval(() => {
+  rooms.forEach(room => {
+    if(room.started && !room.ended) broadcast(room, raceSnapshot(room));
+  });
+}, 100);
 
 server.listen(process.env.PORT || 3000, () => {
   console.log("4 GAP RUSH server running");
