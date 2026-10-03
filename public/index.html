@@ -354,6 +354,9 @@ function connect(){
       lastProgressSent=0;
       playerLane=Math.max(0,Math.min(laneX.length-1,Number(latestPlayers.find(p=>p.id===myId)?.lane ?? 1)));
       targetLane=playerLane;
+      cameraYaw=0;
+      cameraPitch=0.12;
+      cameraDragging=false;
       init3D();
       syncOpponents(latestPlayers);
       document.getElementById("controls").classList.add("hidden");
@@ -534,19 +537,19 @@ function setupCameraControls(){
 
 function updateRaceCamera(){
   if(!camera||!car)return;
-  const radius=14.0;
+  const radius=8.5;
   const side=Math.sin(cameraYaw);
   const back=Math.cos(cameraYaw);
   const camX=car.position.x+side*radius;
   const camZ=car.position.z+back*radius;
-  const camY=2.9+cameraPitch*3.0;
+  const camY=2.15+cameraPitch*2.2;
   camera.position.x=camX;
   camera.position.y=camY;
   camera.position.z=camZ;
-  const lookDistance=10.5;
+  const lookDistance=7.5;
   const targetX=car.position.x-side*lookDistance;
   const targetZ=car.position.z-back*lookDistance;
-  const targetY=0.95+cameraPitch*1.0;
+  const targetY=0.82+cameraPitch*0.8;
   camera.lookAt(targetX,targetY,targetZ);
 }
 
@@ -773,6 +776,9 @@ function init3D(){
 
   // Animated 3D human runner (not a vehicle/object)
   car=new THREE.Group();
+  // Procedural fallback must stay human-sized (~0.75m), otherwise on mobile
+  // it can fill the third-person camera when the GLB is unavailable.
+  car.scale.setScalar(0.32);
   const chosen=document.getElementById("character")?.value||"nobita";
   const girl=chosen==="suzuka";
   const skin=new THREE.MeshStandardMaterial({color:0xf2c39a,roughness:.8});
@@ -887,7 +893,9 @@ function init3D(){
       wall.position.set(side*6.55,-2.35,0);wall.rotation.z=side*.06;wall.receiveShadow=true;ravine.add(wall);
       for(let n=0;n<16;n++){
         const boulder=new THREE.Mesh(new THREE.DodecahedronGeometry(.25+Math.random()*.65,0),rubbleMats[Math.floor(Math.random()*rubbleMats.length)]);
-        boulder.scale.set(1.2,.7,.8);boulder.position.set(side*(5.1+Math.random()*.9),-1.0-Math.random()*3.1,-4.3+Math.random()*8.6);boulder.rotation.set(Math.random(),Math.random()*3,Math.random());boulder.castShadow=true;ravine.add(boulder);
+        boulder.scale.set(1.2,.7,.8);
+        // Decorative rocks must stay outside the 12m racing surface.
+        boulder.position.set(side*(6.9+Math.random()*1.4),-1.0-Math.random()*3.1,-4.3+Math.random()*8.6);boulder.rotation.set(Math.random(),Math.random()*3,Math.random());boulder.castShadow=true;ravine.add(boulder);
       }
     }
     // IMPORTANT: do NOT put a solid wall across the road at either end.
