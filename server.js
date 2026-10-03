@@ -183,7 +183,7 @@ wss.on("connection", ws => {
       room.players.set(id, {
         id,
         name: String(m.name || "Player").slice(0, 18),
-        ready: false,
+        ready: true,
         dist: 0,
         recovery: 2,
         alive: true,
@@ -264,6 +264,11 @@ wss.on("connection", ws => {
         gaps: room.gaps.map(g => ({ at: g.at, width: g.width })),
         players: racePlayers
       });
+
+      // Keep a short race-start handshake available. If a phone misses the
+      // first WebSocket packet while its browser is rendering the lobby,
+      // race_sync lets it enter the same race without requiring a refresh.
+      room.raceSyncUntil = Date.now() + 8000;
     }
 
     // CLIENT DISTANCE PROGRESS: server only accepts progress toward the next gap.
@@ -389,10 +394,32 @@ app.get("/", (req, res) => {
 // receives the current track checkpoints and every opponent's position.
 setInterval(() => {
   rooms.forEach(room => {
-    if(room.started && !room.ended) broadcast(room, raceSnapshot(room));
+    if(room.started && !room.ended) {
+      broadcast(room, raceSnapshot(room));
+      if(room.raceSyncUntil && Date.now() < room.raceSyncUntil){
+        broadcast(room, {
+          type:"race_sync",
+          startedAt:room.startedAt,
+          gaps:room.gaps.map(g => ({at:g.at,width:g.width})),
+          players:[...room.players.values()].map(p=>({
+            id:p.id,name:p.name,dist:p.dist,alive:p.alive,finished:p.finished,lane:p.lane
+          }))
+        });
+      }
+    }
   });
 }, 100);
 
 server.listen(process.env.PORT || 3000, () => {
   console.log("4 GAP RUSH server running");
 });
+
+// Render/WebSocket connections can occasionally become stale on mobile networks.
+// ws handles pong automatically; periodic ping detects dead sockets early.
+setInterval(() => {
+  wss.clients.forEach(ws => {
+    if (ws.isAlive === false) return ws.terminate();
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, 30000);
