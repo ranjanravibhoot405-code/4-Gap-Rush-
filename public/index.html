@@ -197,7 +197,7 @@ function replaceOpponentWithRealistic(g){
   const rawBox=new THREE.Box3().setFromObject(human);
   const rawSize=new THREE.Vector3();
   rawBox.getSize(rawSize);
-  const targetHeight=0.62;
+  const targetHeight=0.70;
   if(rawSize.y>0.01) human.scale.setScalar(targetHeight/rawSize.y);
   const fittedBox=new THREE.Box3().setFromObject(human);
   human.position.set(0,-fittedBox.min.y,0);
@@ -282,7 +282,7 @@ function updateOpponents(){
     // the third-person camera. This keeps every connected racer visible on
     // mobile screens instead of placing them kilometres outside the camera.
     const rawDz=(st.dist-distance)/10;
-    const dz=Math.max(-38,Math.min(38,rawDz));
+    const dz=Math.max(-18,Math.min(18,rawDz));
     g.position.z=(car?car.position.z:3)-dz;
     g.position.x=g.userData.baseX;
     const runT=Date.now()*.009+id.length;
@@ -880,7 +880,7 @@ function init3D(){
         const rawBox=new THREE.Box3().setFromObject(human);
         const rawSize=new THREE.Vector3();
         rawBox.getSize(rawSize);
-        const targetHeight=0.75;
+        const targetHeight=0.70;
         if(rawSize.y>0.01) human.scale.setScalar(targetHeight/rawSize.y);
         const fittedBox=new THREE.Box3().setFromObject(human);
         human.position.set(laneX[targetLane],-fittedBox.min.y,3);
@@ -1020,7 +1020,7 @@ function animate(){
     if(alive&&!fallSequence){
       if(boostTimer>0) boostTimer=Math.max(0,boostTimer-dt);
       const speedMultiplier=boostTimer>0?1.85:1;
-      const travelSpeed=12*speedMultiplier;
+      const travelSpeed=14.5*speedMultiplier;
       const upcoming=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
       const target=upcoming?(typeof upcoming==="number"?upcoming:upcoming.at):2000;
       if(visualDistance<target-2) visualDistance=Math.min(target-2,visualDistance+dt*travelSpeed);
@@ -1087,8 +1087,8 @@ function animate(){
     });
 
     if(finishGate){
-      finishGate.position.z=3-(2000-distance)/10;
-      finishGate.visible=(2000-distance)>-25&&(2000-distance)<600;
+      finishGate.position.z=3;
+      finishGate.visible=(2000-distance)>-30&&(2000-distance)<900;
       if(finishGate.children[finishGate.children.length-1]) finishGate.children[finishGate.children.length-1].visible=finishGate.visible;
     }
     gapObjects.forEach((gap,i)=>{
