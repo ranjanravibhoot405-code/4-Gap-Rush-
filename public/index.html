@@ -73,7 +73,7 @@ button:disabled{opacity:.35}
 <button onclick="jump(9)">9</button>
 </div>
 </div>
-<p>Tap your jump power to cross each gap!</p>
+<p>Jump is available from 18 m before each gap — choose your power in the safe zone.</p>
 </section>
 
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
@@ -128,7 +128,7 @@ function makeOpponent(id,name,index){
   // Fallback opponent meshes are built at ~2.4m. Keep the visual human-sized
   // so a missing/slow GLB can never fill the whole mobile camera.
   const visual=new THREE.Group();
-  visual.scale.setScalar(0.27);
+  visual.scale.setScalar(0.38);
   const hue=[0xff4d4d,0x22c55e,0xa855f7,0xf59e0b,0x06b6d4,0xec4899,0x84cc16][index%7];
   const shirt=new THREE.MeshStandardMaterial({color:hue,roughness:.7});
   const skin=new THREE.MeshStandardMaterial({color:0xd99a72,roughness:.85});
@@ -530,7 +530,7 @@ function jump(choice){
   if(!racing||!alive||usedChoices.includes(choice))return;
   const next=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
   const at=next?(typeof next==="number"?next:next.at):null;
-  if(at===null||distance<at-2||distance>=at){
+  if(at===null||distance<at-18||distance>=at+2){
     document.getElementById("raceStatus").textContent="⏳ Wait for the "+(at||"finish")+" m checkpoint!";
     return;
   }
@@ -587,19 +587,19 @@ function setupCameraControls(){
 
 function updateRaceCamera(){
   if(!camera||!car)return;
-  const radius=11.5;
+  const radius=9.5;
   const side=Math.sin(cameraYaw);
   const back=Math.cos(cameraYaw);
   const camX=car.position.x+side*radius;
   const camZ=car.position.z+back*radius;
-  const camY=2.35+cameraPitch*1.8;
+  const camY=2.25+cameraPitch*1.65;
   camera.position.x=camX;
   camera.position.y=camY;
   camera.position.z=camZ;
-  const lookDistance=8.5;
+  const lookDistance=7.0;
   const targetX=car.position.x-side*lookDistance;
   const targetZ=car.position.z-back*lookDistance;
-  const targetY=0.68+cameraPitch*0.65;
+  const targetY=0.72+cameraPitch*0.6;
   camera.lookAt(targetX,targetY,targetZ);
 }
 
@@ -828,7 +828,7 @@ function init3D(){
   car=new THREE.Group();
   // Procedural fallback must stay human-sized (~0.75m), otherwise on mobile
   // it can fill the third-person camera when the GLB is unavailable.
-  car.scale.setScalar(0.32);
+  car.scale.setScalar(0.38);
   const chosen=document.getElementById("character")?.value||"nobita";
   const girl=chosen==="suzuka";
   const skin=new THREE.MeshStandardMaterial({color:0xf2c39a,roughness:.8});
@@ -1014,7 +1014,7 @@ function animate(){
       distance=Math.max(distance,visualDistance);
       const nextCheckpoint=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
       const checkpointAt=nextCheckpoint?(typeof nextCheckpoint==="number"?nextCheckpoint:nextCheckpoint.at):null;
-      const checkpointReady=checkpointAt!==null && distance>=checkpointAt-2 && distance<checkpointAt;
+      const checkpointReady=checkpointAt!==null && distance>=checkpointAt-18 && distance<checkpointAt;
       const controls=document.getElementById("controls");
       const guide=document.getElementById("jumpGuide");
       if(controls) controls.classList.toggle("hidden",!checkpointReady);
