@@ -124,22 +124,28 @@ let boostFlashTimer=0;
 
 function makeOpponent(id,name,index){
   const g=new THREE.Group();
+  // Fallback opponent meshes are built at ~2.4m. Keep the visual human-sized
+  // so a missing/slow GLB can never fill the whole mobile camera.
+  const visual=new THREE.Group();
+  visual.scale.setScalar(0.32);
   const hue=[0xff4d4d,0x22c55e,0xa855f7,0xf59e0b,0x06b6d4,0xec4899,0x84cc16][index%7];
   const shirt=new THREE.MeshStandardMaterial({color:hue,roughness:.7});
   const skin=new THREE.MeshStandardMaterial({color:0xd99a72,roughness:.85});
   const dark=new THREE.MeshStandardMaterial({color:0x202020,roughness:.7});
   const body=new THREE.Mesh(new THREE.CapsuleGeometry(.34,.68,5,10),shirt);
-  body.position.y=1.18; g.add(body);
+  body.position.y=1.18; visual.add(body);
   const head=new THREE.Mesh(new THREE.SphereGeometry(.29,16,12),skin);
-  head.position.y=1.78; g.add(head);
+  head.position.y=1.78; visual.add(head);
   const hair=new THREE.Mesh(new THREE.SphereGeometry(.32,16,10,0,Math.PI*2,0,Math.PI*.55),dark);
-  hair.position.y=1.92; g.add(hair);
+  hair.position.y=1.92; visual.add(hair);
   for(const side of [-1,1]){
     const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.085,.58,4,7),skin);
-    arm.position.set(side*.39,1.72,0); arm.rotation.z=side*.12; g.add(arm);
+    arm.position.set(side*.39,1.72,0); arm.rotation.z=side*.12; visual.add(arm);
     const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.12,.7,4,7),dark);
-    leg.position.set(side*.17,.72,0); g.add(leg);
+    leg.position.set(side*.17,.72,0); visual.add(leg);
   }
+  g.add(visual);
+
   const labelCanvas=document.createElement("canvas");
   labelCanvas.width=512; labelCanvas.height=96;
   const ctx=labelCanvas.getContext("2d");
@@ -332,7 +338,8 @@ function connect(){
       // Use the server's common start timestamp so both phones show the
       // same race clock instead of starting their timer at different
       // WebSocket message arrival times.
-      raceStartedAt=Number(m.startedAt)||Date.now();
+      const rawStart=Number(m.startedAt);
+      raceStartedAt=rawStart>0 ? (rawStart<100000000000 ? rawStart*1000 : rawStart) : Date.now();
       showRacePage();
 
       // The server now sends the complete authoritative checkpoint snapshot.
@@ -1004,9 +1011,8 @@ function animate(){
       item.obj.position.z=wrapped;
     });
 
-    // Road moves towards the player
-    road.position.z=distance/10;
-
+    // Road remains fixed in world space. Gap objects, lane marks and
+    // roadside scenery are positioned from the player's authoritative distance.
     roadLines.forEach((line,i)=>{
       line.position.z=3-((i*7+movement)%280);
       // Center markings must stop at the pit too; never draw a stripe over empty space.
