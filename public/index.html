@@ -397,13 +397,29 @@ function connect(){
     }
 
     if(m.type==="race_positions"){
-      (m.players||[]).forEach(p=>{
+      (m.players||[]).forEach((p,index)=>{
         if(p.id===myId)return;
-        opponentStates.set(p.id,{dist:Number(p.dist)||0,alive:p.alive!==false,finished:!!p.finished,lane:Number.isFinite(Number(p.lane))?Number(p.lane):1});
-        const g=opponents.get(p.id);
+
+        const lane=Number.isFinite(Number(p.lane))
+          ? Math.max(0,Math.min(laneX.length-1,Number(p.lane)))
+          : index%laneX.length;
+
+        opponentStates.set(p.id,{
+          dist:Number(p.dist)||0,
+          alive:p.alive!==false,
+          finished:!!p.finished,
+          lane
+        });
+
+        // Do not depend only on room_state timing. If a position packet arrives
+        // before the opponent group exists, create it immediately.
+        let g=opponents.get(p.id);
+        if(!g && scene && racing) g=makeOpponent(p.id,p.name||"Opponent",index);
+
         if(g){
+          g.userData.lane=lane;
+          g.userData.baseX=laneX[lane];
           g.visible=p.alive!==false&&!p.finished;
-          if(Number.isFinite(Number(p.lane))){g.userData.lane=Number(p.lane);g.userData.baseX=laneX[Number(p.lane)];}
         }
       });
     }
@@ -542,6 +558,15 @@ function init3D(){
   roadLines.length=0;
   gapObjects.length=0;
   window.runnerLimbs=[];
+
+  // A new race creates a new Three.js scene. Rebuild opponent groups too;
+  // otherwise the Map can still point at groups attached to the previous scene,
+  // making every opponent invisible after a race/restart.
+  opponents.forEach(g=>{
+    try{ if(g.parent) g.parent.remove(g); }catch{}
+  });
+  opponents.clear();
+  opponentStates.clear();
   animationFrameId=0;
   const container=document.getElementById("game");
 
