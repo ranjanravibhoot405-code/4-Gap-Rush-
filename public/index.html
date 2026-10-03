@@ -507,7 +507,7 @@ function jump(choice){
 
 function updateHUD(){
   const timer=document.getElementById("raceTimer");
-  if(timer && raceStartedAt){const elapsed=Math.max(0,performance.now()-raceStartedAt);const mins=Math.floor(elapsed/60000);const secs=((elapsed%60000)/1000).toFixed(2);timer.textContent="TIME: "+String(mins).padStart(2,"0")+":"+secs.padStart(5,"0");}
+  if(timer && raceStartedAt){const elapsed=Math.max(0,Date.now()-raceStartedAt);const mins=Math.floor(elapsed/60000);const secs=((elapsed%60000)/1000).toFixed(2);timer.textContent="TIME: "+String(mins).padStart(2,"0")+":"+secs.padStart(5,"0");}
   document.getElementById("distance").textContent=
     "Distance: "+Math.floor(distance)+" / 2000 m";
   const nextGap=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
