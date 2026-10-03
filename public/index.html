@@ -329,9 +329,21 @@ function connect(){
 
     if(m.type==="race_start"){
       racing=true;
-      raceStartedAt=performance.now();
+      // Use the server's common start timestamp so both phones show the
+      // same race clock instead of starting their timer at different
+      // WebSocket message arrival times.
+      raceStartedAt=performance.now() - Math.max(0,performance.timeOrigin + Date.now() - Number(m.startedAt||Date.now()));
       showRacePage();
-      gaps=m.gaps||[400,800,1200,1600];
+
+      // The server now sends the complete authoritative checkpoint snapshot.
+      gaps=Array.isArray(m.gaps)&&m.gaps.length
+        ? m.gaps.map(g=>typeof g==="number"?g:{at:Number(g.at),width:Number(g.width)})
+        : [400,800,1200,1600];
+
+      if(Array.isArray(m.players)&&m.players.length){
+        latestPlayers=m.players;
+      }
+
       distance=0;
       visualDistance=0;
       lastFrame=0;
@@ -340,6 +352,8 @@ function connect(){
       alive=true;
       usedChoices=[];
       lastProgressSent=0;
+      playerLane=Number(latestPlayers.find(p=>p.id===myId)?.lane ?? 1);
+      targetLane=playerLane;
       init3D();
       syncOpponents(latestPlayers);
       document.getElementById("controls").classList.add("hidden");
