@@ -128,7 +128,7 @@ function makeOpponent(id,name,index){
   // Fallback opponent meshes are built at ~2.4m. Keep the visual human-sized
   // so a missing/slow GLB can never fill the whole mobile camera.
   const visual=new THREE.Group();
-  visual.scale.setScalar(0.32);
+  visual.scale.setScalar(0.27);
   const hue=[0xff4d4d,0x22c55e,0xa855f7,0xf59e0b,0x06b6d4,0xec4899,0x84cc16][index%7];
   const shirt=new THREE.MeshStandardMaterial({color:hue,roughness:.7});
   const skin=new THREE.MeshStandardMaterial({color:0xd99a72,roughness:.85});
@@ -162,8 +162,7 @@ function makeOpponent(id,name,index){
   g.position.set(0,0,3);
   scene.add(g);
   opponents.set(id,g);
-  loadRealisticOpponent(g);
-  return g;
+  // Keep the local procedural runner as the multiplayer avatar.\n  // It cannot disappear because an external GLB is late, blocked, or badly lit.\n  return g;
 }
 
 function loadRealisticOpponent(g){
@@ -273,10 +272,18 @@ function updateOpponents(){
   opponentStates.forEach((st,id)=>{
     const g=opponents.get(id);
     if(!g) return;
-    if(!st.alive||st.finished){g.visible=false;return;}
-    g.visible=true;
-    // Same world scale as the player's runner: 10 world units = 100 m.
-    const dz=(st.dist-distance)/10;
+    if(!st.alive){
+      // Eliminated players remain represented by a small, darkened runner
+      // until the race result is shown instead of vanishing from the track.
+      g.visible=true;
+    }else{
+      g.visible=true;
+    }
+    // Preserve the real distance in state, but compress very large gaps for
+    // the third-person camera. This keeps every connected racer visible on
+    // mobile screens instead of placing them kilometres outside the camera.
+    const rawDz=(st.dist-distance)/10;
+    const dz=Math.max(-24,Math.min(32,rawDz));
     g.position.z=(car?car.position.z:3)-dz;
     g.position.x=g.userData.baseX;
     const runT=Date.now()*.009+id.length;
@@ -287,7 +294,7 @@ function updateOpponents(){
       if(child.type==="Mesh" && i>2) child.rotation.x=Math.sin(runT+(i%2)*Math.PI)*.35;
     });
     // Don't render an opponent far behind/ahead outside the useful view.
-    // Keep opponents visible over a generous range. Never make a player\n    // disappear merely because the camera is temporarily behind/ahead during\n    // a slow mobile frame.\n    g.visible=Math.abs(dz)<180;
+    // The compressed position above intentionally keeps the avatar in camera range.\n    g.visible=true;
   });
 }
 
@@ -580,19 +587,19 @@ function setupCameraControls(){
 
 function updateRaceCamera(){
   if(!camera||!car)return;
-  const radius=8.5;
+  const radius=11.5;
   const side=Math.sin(cameraYaw);
   const back=Math.cos(cameraYaw);
   const camX=car.position.x+side*radius;
   const camZ=car.position.z+back*radius;
-  const camY=2.15+cameraPitch*2.2;
+  const camY=2.35+cameraPitch*1.8;
   camera.position.x=camX;
   camera.position.y=camY;
   camera.position.z=camZ;
-  const lookDistance=7.5;
+  const lookDistance=8.5;
   const targetX=car.position.x-side*lookDistance;
   const targetZ=car.position.z-back*lookDistance;
-  const targetY=0.82+cameraPitch*0.8;
+  const targetY=0.68+cameraPitch*0.65;
   camera.lookAt(targetX,targetY,targetZ);
 }
 
@@ -1069,7 +1076,7 @@ function animate(){
     gapObjects.forEach((gap,i)=>{
       const at=typeof gaps[i]==="number"?gaps[i]:gaps[i].at;
       gap.position.z=3-(at-distance)/10;
-      // Do not let a giant ravine dominate the third-person camera from far\n      // away. Reveal the gap as the runner approaches it; the jump prompt\n      // still appears exactly 2 m before the checkpoint.\n      gap.visible=(at-distance)>-30&&(at-distance)<90;
+      // Do not let a giant ravine dominate the third-person camera from far\n      // away. Reveal the gap as the runner approaches it; the jump prompt\n      // still appears exactly 2 m before the checkpoint.\n      gap.visible=(at-distance)>-20&&(at-distance)<38;
     });
 
     const runT=Date.now()*.009;
