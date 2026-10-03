@@ -1087,7 +1087,7 @@ function animate(){
     });
 
     if(finishGate){
-      finishGate.position.z=3;
+      finishGate.position.z=3-2000/10;
       finishGate.visible=(2000-distance)>-30&&(2000-distance)<900;
       if(finishGate.children[finishGate.children.length-1]) finishGate.children[finishGate.children.length-1].visible=finishGate.visible;
     }
