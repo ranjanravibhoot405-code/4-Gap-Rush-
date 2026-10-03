@@ -250,8 +250,7 @@ function syncOpponents(players){
     g.userData.baseX=laneX[lane];
     opponentStates.set(p.id,{dist:Number(p.dist)||0,alive:p.alive!==false,finished:!!p.finished,lane});
     opponentLastSeen.set(p.id,performance.now());
-    g.visible=p.alive!==false && !p.finished;
-    if(p.finished) g.visible=false;
+    // Keep every connected racer represented through the finish.\n    // A finished racer stays visible at the finish line instead of vanishing.\n    g.visible=true;
   });
   opponents.forEach((g,id)=>{
     // Do not delete an opponent because one mobile packet was incomplete.
@@ -283,7 +282,7 @@ function updateOpponents(){
     // the third-person camera. This keeps every connected racer visible on
     // mobile screens instead of placing them kilometres outside the camera.
     const rawDz=(st.dist-distance)/10;
-    const dz=Math.max(-24,Math.min(32,rawDz));
+    const dz=Math.max(-38,Math.min(38,rawDz));
     g.position.z=(car?car.position.z:3)-dz;
     g.position.x=g.userData.baseX;
     const runT=Date.now()*.009+id.length;
@@ -439,6 +438,10 @@ function connect(){
         document.getElementById("raceStatus").textContent=m.result==="nitro"?"🚀 PERFECT! SPEED BOOST!":m.result==="skate"?"🚀 SUCCESSFUL JUMP — SPEED BOOST!":m.result==="finish"?"🏆 FINISHED!":"";
       }
       updateHUD();
+    }
+
+    if(m.type==="winner_update"){
+      document.getElementById("raceStatus").textContent="🏁 FINISHER: "+m.winner+" — Race continues until all racers finish!";
     }
 
     if(m.type==="race_over"){
@@ -923,12 +926,23 @@ function init3D(){
   finishGate=new THREE.Group();
   const gateMat=new THREE.MeshStandardMaterial({color:0xf8fafc,roughness:.6});
   for(const x of [-5.8,5.8]){const post=new THREE.Mesh(new THREE.BoxGeometry(.35,5.2,.35),gateMat);post.position.set(x,2.6,0);finishGate.add(post);}
-  const beam=new THREE.Mesh(new THREE.BoxGeometry(12,.45,.45),gateMat);beam.position.set(0,5.05,0);finishGate.add(beam);
+  const beam=new THREE.Mesh(new THREE.BoxGeometry(13,.6,.6),gateMat);beam.position.set(0,5.05,0);finishGate.add(beam);
   const checkerCanvas=document.createElement("canvas");checkerCanvas.width=512;checkerCanvas.height=128;
   const cc=checkerCanvas.getContext("2d");for(let y=0;y<8;y++)for(let x=0;x<32;x++){cc.fillStyle=(x+y)%2?"#fff":"#111";cc.fillRect(x*16,y*16,16,16);}cc.fillStyle="#ffdf00";cc.fillRect(90,35,332,58);cc.fillStyle="#111";cc.font="bold 48px Arial";cc.textAlign="center";cc.textBaseline="middle";cc.fillText("FINISH",256,64);
   const checkerTex=new THREE.CanvasTexture(checkerCanvas);
   const banner=new THREE.Mesh(new THREE.PlaneGeometry(11.5,1.4),new THREE.MeshBasicMaterial({map:checkerTex,side:THREE.DoubleSide}));
-  banner.position.set(0,4.25,0);finishGate.add(banner);scene.add(finishGate);
+  banner.position.set(0,4.25,0);finishGate.add(banner);
+  // Physical finish stripe across the road, clearly visible from approach.
+  const finishStripe=new THREE.Mesh(
+    new THREE.BoxGeometry(11.8,.035,1.8),
+    new THREE.MeshBasicMaterial({color:0xffffff})
+  );
+  finishStripe.position.set(0,.03,0);finishGate.add(finishStripe);
+  for(let n=0;n<12;n++){
+    const sq=new THREE.Mesh(new THREE.BoxGeometry(.98,.045,.45),
+      new THREE.MeshBasicMaterial({color:n%2?0x111111:0xffffff}));
+    sq.position.set(-5.4+n*.98,.055,0);finishGate.add(sq);
+  }scene.add(finishGate);
   gaps.forEach((g,i)=>{
     const at=typeof g==="number"?g:g.at;
     const ravine=new THREE.Group();
@@ -1072,7 +1086,11 @@ function animate(){
       line.visible=!overPit;
     });
 
-    if(finishGate){finishGate.position.z=3-(2000-distance)/10;finishGate.visible=(2000-distance)>-8&&(2000-distance)<350;}
+    if(finishGate){
+      finishGate.position.z=3-(2000-distance)/10;
+      finishGate.visible=(2000-distance)>-25&&(2000-distance)<600;
+      if(finishGate.children[finishGate.children.length-1]) finishGate.children[finishGate.children.length-1].visible=finishGate.visible;
+    }
     gapObjects.forEach((gap,i)=>{
       const at=typeof gaps[i]==="number"?gaps[i]:gaps[i].at;
       gap.position.z=3-(at-distance)/10;
