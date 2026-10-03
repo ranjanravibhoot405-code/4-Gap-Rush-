@@ -84,6 +84,7 @@ let racing=false,distance=0,recovery=2,alive=true;
 let scene,camera,renderer,car,road;
 let opponents=new Map();
 let opponentStates=new Map();
+let opponentLastSeen=new Map();
 let latestPlayers=[];
 let gapObjects=[],roadLines=[];
 let gaps=[];
@@ -249,14 +250,20 @@ function syncOpponents(players){
     g.userData.lane=lane;
     g.userData.baseX=laneX[lane];
     opponentStates.set(p.id,{dist:Number(p.dist)||0,alive:p.alive!==false,finished:!!p.finished,lane});
+    opponentLastSeen.set(p.id,performance.now());
     g.visible=p.alive!==false && !p.finished;
     if(p.finished) g.visible=false;
   });
   opponents.forEach((g,id)=>{
-    if(!active.has(id)){
+    // Do not delete an opponent because one mobile packet was incomplete.
+    // The server sends full snapshots, but mobile WebSocket delivery can
+    // briefly lag while the Three.js scene is rendering.
+    const last=opponentLastSeen.get(id)||0;
+    if(!active.has(id) && performance.now()-last>2500){
       scene.remove(g);
       opponents.delete(id);
       opponentStates.delete(id);
+      opponentLastSeen.delete(id);
     }
   });
 }
@@ -280,7 +287,7 @@ function updateOpponents(){
       if(child.type==="Mesh" && i>2) child.rotation.x=Math.sin(runT+(i%2)*Math.PI)*.35;
     });
     // Don't render an opponent far behind/ahead outside the useful view.
-    g.visible=Math.abs(dz)<90;
+    // Keep opponents visible over a generous range. Never make a player\n    // disappear merely because the camera is temporarily behind/ahead during\n    // a slow mobile frame.\n    g.visible=Math.abs(dz)<180;
   });
 }
 
@@ -1062,7 +1069,7 @@ function animate(){
     gapObjects.forEach((gap,i)=>{
       const at=typeof gaps[i]==="number"?gaps[i]:gaps[i].at;
       gap.position.z=3-(at-distance)/10;
-      gap.visible=(at-distance)>-30&&(at-distance)<100;
+      // Do not let a giant ravine dominate the third-person camera from far\n      // away. Reveal the gap as the runner approaches it; the jump prompt\n      // still appears exactly 2 m before the checkpoint.\n      gap.visible=(at-distance)>-30&&(at-distance)<90;
     });
 
     const runT=Date.now()*.009;
