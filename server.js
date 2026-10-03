@@ -95,6 +95,8 @@ function leave(ws) {
 }
 
 wss.on("connection", ws => {
+  ws.isAlive = true;
+  ws.on("pong", () => { ws.isAlive = true; });
 
   ws.on("message", raw => {
     let m;
