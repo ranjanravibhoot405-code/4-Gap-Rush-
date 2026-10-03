@@ -154,7 +154,9 @@ function makeOpponent(id,name,index){
   ctx.fillText(String(name||"Opponent").slice(0,18),256,48);
   const labelTex=new THREE.CanvasTexture(labelCanvas);
   const label=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex,transparent:true,depthTest:false}));
-  label.scale.set(2.8,.52,1);label.position.set(0,2.45,0);g.add(label);
+  // Keep the floating nameplate readable but never large enough to
+  // dominate a mobile third-person camera.
+  label.scale.set(1.55,.29,1);label.position.set(0,1.25,0);g.add(label);
   
   g.position.set(0,0,3);
   scene.add(g);
@@ -268,7 +270,7 @@ function updateOpponents(){
     g.visible=true;
     // Same world scale as the player's runner: 10 world units = 100 m.
     const dz=(st.dist-distance)/10;
-    g.position.z=3-dz;
+    g.position.z=(car?car.position.z:3)-dz;
     g.position.x=g.userData.baseX;
     const runT=Date.now()*.009+id.length;
     if(g.userData.mixer)g.userData.mixer.update(0.016);
@@ -1002,13 +1004,18 @@ function animate(){
     }
     updateOpponents();
     updateRaceCamera();
-    const movement=visualDistance/10+sceneryClock;
+    // The runner now travels physically through the fixed track.
+    // Gaps, road slabs and finish line stay in one world coordinate system;
+    // moving the player/camera prevents the camera from intersecting scenery.
+    if(car){
+      car.position.z=3-distance/10;
+    }
 
-    // Move and recycle roadside props toward the runner as distance advances.
-    // This creates forward travel while keeping a finite, mobile-friendly scene.
+    // Roadside props belong to the fixed track, so do not slide them
+    // independently of the road/gaps.
     sceneryItems.forEach(item=>{
-      const wrapped=((item.baseZ+distance/10+300)%315)-300;
-      item.obj.position.z=wrapped;
+      item.obj.position.z=item.baseZ;
+      if(Number.isFinite(item.baseX)) item.obj.position.x=item.baseX;
     });
 
     // Road remains fixed in world space. Gap objects, lane marks and
