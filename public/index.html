@@ -173,11 +173,15 @@ function loadRealisticOpponent(g){
   }
   if(opponentModelLoading)return;
   opponentModelLoading=true;
-  import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js")
-    .then(({GLTFLoader})=>{
+  Promise.all([
+    import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js"),
+    import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js")
+  ])
+    .then(([{GLTFLoader},{clone}])=>{
       const loader=new GLTFLoader();
-      loader.load("https://raw.githubusercontent.com/0beqz/three.js-studio-human-demo/master/glb/studio_bake_human.glb",gltf=>{
+      loader.load("https://cdn.jsdelivr.net/gh/kunalkushwaha/vsim@main/packages/assets/library/human.glb",gltf=>{
         opponentModelTemplate=gltf.scene;
+        window.cloneHumanModel=clone;
         opponentAnimations=gltf.animations||[];
         opponentModelLoading=false;
         opponents.forEach(op=>replaceOpponentWithRealistic(op));
@@ -193,7 +197,7 @@ function replaceOpponentWithRealistic(g){
   // The Soldier sample has a different native unit scale than our road.
   // Normalize it by its actual bounding-box height so it can never fill the
   // camera like a giant black wall on mobile screens.
-  const human=opponentModelTemplate.clone(true);
+  const human=(window.cloneHumanModel ? window.cloneHumanModel(opponentModelTemplate) : opponentModelTemplate.clone(true));
   human.scale.setScalar(1);
   const rawBox=new THREE.Box3().setFromObject(human);
   const rawSize=new THREE.Vector3();
@@ -867,7 +871,7 @@ function init3D(){
     try{
       const {GLTFLoader}=await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js");
       const loader=new GLTFLoader();
-      const modelUrl="https://raw.githubusercontent.com/0beqz/three.js-studio-human-demo/master/glb/studio_bake_human.glb";
+      const modelUrl="https://cdn.jsdelivr.net/gh/kunalkushwaha/vsim@main/packages/assets/library/human.glb";
       let settled=false;
       const fallbackTimer=setTimeout(()=>{if(!settled) console.warn("4 GAP RUSH: human model timeout; fallback kept");},7000);
 
