@@ -176,7 +176,7 @@ function loadRealisticOpponent(g){
   import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js")
     .then(({GLTFLoader})=>{
       const loader=new GLTFLoader();
-      loader.load("https://cdn.jsdelivr.net/gh/Richardengle/3dfiles@main/human.glb",gltf=>{
+      loader.load("https://raw.githubusercontent.com/0beqz/three.js-studio-human-demo/master/glb/studio_bake_human.glb",gltf=>{
         opponentModelTemplate=gltf.scene;
         opponentAnimations=gltf.animations||[];
         opponentModelLoading=false;
@@ -246,6 +246,8 @@ function syncOpponents(players){
     active.add(p.id);
     let g=opponents.get(p.id);
     if(!g) g=makeOpponent(p.id,p.name,index);
+    // Every opponent uses the same full-body human asset as the local racer.
+    loadRealisticOpponent(g);
     const lane=Number.isFinite(Number(p.lane))?Number(p.lane):(index%4);
     g.userData.lane=lane;
     g.userData.baseX=laneX[lane];
@@ -1102,6 +1104,16 @@ function animate(){
         car.position.y=baseY;
         car.rotation.z=Math.sin(runT)*.012;
         car.rotation.x=0;
+
+        // Static scanned human: subtle torso bob/lean so the character still
+        // reads as a moving runner from the chase camera.
+        if(car.userData.realistic && car.userData.human){
+          const h=car.userData.human;
+          const phase=(car.userData.runnerPhase||0)+runT*1.8;
+          h.position.y=-new THREE.Box3().setFromObject(h).min.y;
+          h.rotation.x=Math.sin(phase)*.025;
+          h.rotation.z=Math.cos(phase)*.018;
+        }
       }
     }
     if(!humanMixer && fallTimer<=0 && !fallSequence)(window.runnerLimbs||[]).forEach(({part,phase,arm})=>{part.rotation.x=Math.sin(runT+phase)*(arm?.42:.62);});
