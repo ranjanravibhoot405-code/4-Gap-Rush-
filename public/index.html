@@ -315,6 +315,22 @@ function createStylishOutfit(root,dressId){
   });
 }
 
+function applyCharacterStyle(root,character){
+  if(!root)return;
+  const girl=character==="suzuka";
+  root.traverse(o=>{
+    if(!o.isMesh||!o.material)return;
+    const mats=Array.isArray(o.material)?o.material:[o.material];
+    mats.forEach(mat=>{
+      if(!mat||!mat.color)return;
+      // Keep the downloaded realistic human intact; only make the selected
+      // boy/girl profile visually distinct without turning it into a cartoon.
+      const n=String(o.name||"").toLowerCase();
+      if(/hair|headhair/.test(n)) mat.color.set(girl?0x24170f:0x161616);
+    });
+  });
+}
+
 function applyDressToModel(root,dressId){
   if(!root)return;
   const dress=DRESS_CATALOG.find(d=>d.id===dressId)||DRESS_CATALOG[0];
@@ -459,9 +475,9 @@ function makeOpponent(id,name,index){
   // Keep the local procedural runner as the multiplayer avatar.\n  // It cannot disappear because an external GLB is late, blocked, or badly lit.\n  return g;
 }
 
-function loadRealisticOpponent(g,dressId){
+function loadRealisticOpponent(g,dressId,character){
   if(opponentModelTemplate){
-    replaceOpponentWithRealistic(g,dressId||g.userData.dress||"starter");
+    replaceOpponentWithRealistic(g,dressId||g.userData.dress||"starter",character||g.userData.character||"nobita");
     return;
   }
   if(opponentModelLoading)return;
@@ -482,7 +498,7 @@ function loadRealisticOpponent(g,dressId){
     }).catch(()=>{opponentModelLoading=false;});
 }
 
-function replaceOpponentWithRealistic(g,dressId){
+function replaceOpponentWithRealistic(g,dressId,character){
   if(!g||g.userData.realistic||!opponentModelTemplate)return;
   const oldChildren=[...g.children];
   oldChildren.forEach(ch=>{if(ch.type!=="Sprite")g.remove(ch);});
@@ -522,7 +538,9 @@ function replaceOpponentWithRealistic(g,dressId){
     });
   });
   applyDressToModel(human,dressId||g.userData.dress||"starter");
+  applyCharacterStyle(human,character||g.userData.character||"nobita");
   g.userData.dress=dressId||g.userData.dress||"starter";
+  g.userData.character=character||g.userData.character||"nobita";
   g.add(human);
   g.userData.realistic=true;
   g.userData.human=human;
@@ -549,14 +567,16 @@ function syncOpponents(players){
     const nextDress=p.dress||"starter";
     const previousDress=g.userData.dress||"starter";
     g.userData.dress=nextDress;
-    // Every opponent uses the same full-body human asset as the local racer.
-    loadRealisticOpponent(g,nextDress);
+    g.userData.character=p.character==="suzuka"?"suzuka":"nobita";
+    // Every opponent uses the same full-body realistic human asset, with the
+    // selected character profile and purchased outfit carried over from the server.
+    loadRealisticOpponent(g,nextDress,g.userData.character);
     const lane=Number.isFinite(Number(p.lane))?Number(p.lane):(index%4);
     g.userData.lane=lane;
     g.userData.baseX=laneX[lane];
     opponentStates.set(p.id,{dist:Number(p.dist)||0,alive:p.alive!==false,finished:!!p.finished,lane,dress:nextDress});
     if(g.userData.realistic && previousDress!==nextDress){
-      const h=g.userData.human;applyDressToModel(h,nextDress);g.userData.dress=nextDress;
+      const h=g.userData.human;applyDressToModel(h,nextDress);applyCharacterStyle(h,g.userData.character);g.userData.dress=nextDress;
     }
     opponentLastSeen.set(p.id,performance.now());
     // Keep every connected racer represented through the finish.\n    // A finished racer stays visible at the finish line instead of vanishing.\n    g.visible=true;
@@ -812,10 +832,10 @@ function playerName(){
   return document.getElementById("name").value.trim()||"Player";
 }
 function createRoom(){
-  send({type:"create",name:playerName(),dress:playerProfile.equipped});
+  send({type:"create",name:playerName(),dress:playerProfile.equipped,character:playerProfile.character||document.getElementById("character")?.value||"nobita"});
 }
 function joinRoom(){
-  send({type:"join",room:document.getElementById("room").value.trim(),name:playerName(),dress:playerProfile.equipped});
+  send({type:"join",room:document.getElementById("room").value.trim(),name:playerName(),dress:playerProfile.equipped,character:playerProfile.character||document.getElementById("character")?.value||"nobita"});
 }
 function readyUp(){
   isReady=!isReady;
