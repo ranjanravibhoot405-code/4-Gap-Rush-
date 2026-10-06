@@ -134,11 +134,21 @@ function setUserUI(user) {
     signOutBtn.classList.add("hidden");
   }
 }
-function setupRecaptcha() {
+async function setupRecaptcha() {
+  if (!auth) throw new Error("Firebase Authentication is not initialized.");
   if (recaptcha) {
     try { recaptcha.clear(); } catch {}
+    recaptcha = null;
   }
-  recaptcha = new RecaptchaVerifier(auth, "recaptcha-container", { size: "normal" });
+  const container = $("recaptcha-container");
+  if (!container) throw new Error("reCAPTCHA container is missing.");
+  container.innerHTML = "";
+  recaptcha = new RecaptchaVerifier(auth, "recaptcha-container", {
+    size: "normal",
+    callback: () => message("reCAPTCHA verified. Sending OTP…"),
+    "expired-callback": () => message("reCAPTCHA expired. Please verify it again.", true)
+  });
+  await recaptcha.render();
   return recaptcha;
 }
 if (!configReady()) {
@@ -219,14 +229,15 @@ if (!configReady()) {
         if (!/^\+[1-9]\d{7,14}$/.test(phoneNumber)) {
           message("Use international format, e.g. +919876543210.", true); return;
         }
-        const verifier = setupRecaptcha();
+        const verifier = await setupRecaptcha();
         confirmation = await signInWithPhoneNumber(auth, phoneNumber, verifier);
         $("otpStep").classList.remove("hidden");
         message("OTP sent. Enter the code from SMS.");
       } catch (e) {
+        const code = e?.code || "";
         try { recaptcha?.clear(); } catch {}
         recaptcha = null;
-        const code = e?.code || "";
+        if ($("recaptcha-container")) $("recaptcha-container").innerHTML = "";
         message(code === "auth/operation-not-allowed"
           ? "Phone Sign-in is not enabled in Firebase Authentication."
           : code === "auth/unauthorized-domain"
