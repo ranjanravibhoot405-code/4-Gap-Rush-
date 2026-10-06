@@ -197,6 +197,20 @@ function savePlayerProfile(){
   window.dispatchEvent(new CustomEvent("4gaprush-profile-changed",{detail:{...playerProfile,owned:[...playerProfile.owned]}}));
 }
 
+window.addEventListener("4gaprush-profile-load",e=>{
+  const p=e.detail||{};
+  playerProfile={
+    points:Math.max(0,Number(p.points)||0),
+    owned:Array.isArray(p.owned)?[...new Set(["starter",...p.owned])]:["starter"],
+    equipped:p.equipped||"starter",
+    lastRewardRace:p.lastRewardRace||""
+  };
+  if(!playerProfile.owned.includes(playerProfile.equipped))playerProfile.equipped="starter";
+  try{localStorage.setItem("4gaprush_profile",JSON.stringify(playerProfile));}catch{}
+  updateShopUI();
+  applyDressToModel(lobbyPreviewModel,playerProfile.equipped);
+});
+
 function currentDress(){
   return DRESS_CATALOG.find(d=>d.id===playerProfile.equipped)||DRESS_CATALOG[0];
 }
