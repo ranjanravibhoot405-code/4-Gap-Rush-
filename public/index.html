@@ -68,7 +68,7 @@ button:disabled{opacity:.35}
 <canvas id="lobbyPreview"></canvas>
 <p id="previewStatus">Loading realistic human…</p>
 </div>
-<p style="font-size:13px;color:#cbd5e1">Race finish timing se points milenge. Points se dress buy karo aur EQUIP karke wahi dress race me use hoga.</p>
+<p style="font-size:13px;color:#cbd5e1">Race finish timing se points milenge. Points se complete 3D outfit buy karo. Ye sirf colour change nahi hai — hoodie, jacket, pants, shoes aur suit jaise actual 3D clothing pieces character par equip honge.</p>
 <div id="dressGrid"></div>
 </div>
 
@@ -146,11 +146,11 @@ let boostTotal=0;
 let boostFlashTimer=0;
 
 const DRESS_CATALOG=[
-  {id:"starter",name:"Starter Blue",price:0,color:"#2563eb",accent:"#f8fafc"},
-  {id:"crimson",name:"Crimson Racer",price:250,color:"#dc2626",accent:"#111827"},
-  {id:"emerald",name:"Emerald Pro",price:500,color:"#16a34a",accent:"#f8fafc"},
-  {id:"royal",name:"Royal Champion",price:900,color:"#7c3aed",accent:"#facc15"},
-  {id:"gold",name:"Gold Elite",price:1400,color:"#d97706",accent:"#fff7ed"}
+  {id:"starter",name:"Starter Runner",price:0,style:"Basic race kit"},
+  {id:"street",name:"Street Racer",price:250,style:"Premium streetwear • hoodie + joggers + sneakers"},
+  {id:"pro",name:"Pro Track Suit",price:500,style:"Performance jacket + fitted track pants + racing shoes"},
+  {id:"elite",name:"Elite Racing Set",price:900,style:"Racing jacket + tapered pants + high-top race shoes"},
+  {id:"champion",name:"Champion Suit",price:1400,style:"Tailored athletic suit + shirt + tie + formal shoes"}
 ];
 let playerProfile=loadPlayerProfile();
 let lobbyPreviewScene=null,lobbyPreviewCamera=null,lobbyPreviewRenderer=null,lobbyPreviewModel=null,lobbyPreviewMixer=null,lobbyPreviewReady=false;
@@ -179,39 +179,92 @@ function currentDress(){
   return DRESS_CATALOG.find(d=>d.id===playerProfile.equipped)||DRESS_CATALOG[0];
 }
 
+function makeDressMaterial(hex,rough=.75,metal=0){
+  return new THREE.MeshStandardMaterial({color:hex,roughness:rough,metalness:metal});
+}
+
+function makeOutfitPart(geo,mat,name,y=0){
+  const m=new THREE.Mesh(geo,mat);m.name=name;m.castShadow=true;m.receiveShadow=true;m.position.y=y;return m;
+}
+
+function createStylishOutfit(root,dressId){
+  if(!root)return;
+  const old=root.getObjectByName("4GAP_STYLE_OUTFIT");
+  if(old)root.remove(old);
+
+  const outfit=new THREE.Group();
+  outfit.name="4GAP_STYLE_OUTFIT";
+
+  // The human is normalized to roughly 1.75m. These garments are actual
+  // 3D clothing shapes, not recolors of the skin/body.
+  const navy=makeDressMaterial(0x101827,.58);
+  const black=makeDressMaterial(0x111318,.72);
+  const white=makeDressMaterial(0xf2f3f5,.48);
+  const red=makeDressMaterial(0xb91c1c,.52);
+  const gold=makeDressMaterial(0xd4a72c,.42,.08);
+  const grey=makeDressMaterial(0x4b5563,.76);
+  const blue=makeDressMaterial(0x1d4ed8,.55);
+
+  const torso=(mat,h=.54,w=.72,d=.38,y=1.17)=>{
+    const g=new THREE.Group();g.add(makeOutfitPart(new THREE.BoxGeometry(w,h,d),mat,"garment-body"));g.position.y=y;return g;
+  };
+  const sleeve=(mat,x)=>{
+    const p=new THREE.Group();p.position.set(x,1.28,0);
+    const m=new THREE.Mesh(new THREE.CapsuleGeometry(.105,.52,5,10),mat);
+    m.rotation.z=x<0?-.12:.12;m.position.y=-.02;m.castShadow=true;p.add(m);return p;
+  };
+  const leg=(mat,x)=>{
+    const p=new THREE.Group();p.position.set(x,.68,0);
+    const m=new THREE.Mesh(new THREE.CapsuleGeometry(.135,.62,5,10),mat);
+    m.position.y=-.17;m.castShadow=true;p.add(m);return p;
+  };
+  const shoe=(mat,x,z=.08)=>{
+    const m=new THREE.Mesh(new THREE.BoxGeometry(.28,.14,.43),mat);
+    m.position.set(x,.07,z);m.castShadow=true;return m;
+  };
+
+  if(dressId==="street"){
+    const body=torso(navy,.62,.76,.42,1.16);outfit.add(body,sleeve(navy,-.42),sleeve(navy,.42));
+    const hood=new THREE.Mesh(new THREE.TorusGeometry(.20,.07,10,20),navy);hood.rotation.x=Math.PI/2;hood.position.set(0,1.55,-.02);hood.scale.set(1,.75,1);outfit.add(hood);
+    outfit.add(leg(black,-.19),leg(black,.19),shoe(white,-.19,.11),shoe(white,.19,.11));
+    const stripe=new THREE.Mesh(new THREE.BoxGeometry(.06,.42,.015),white);stripe.position.set(0,1.18,.215);outfit.add(stripe);
+  }else if(dressId==="pro"){
+    const body=torso(blue,.58,.74,.39,1.18);outfit.add(body,sleeve(blue,-.43),sleeve(blue,.43));
+    const collar=new THREE.Mesh(new THREE.CylinderGeometry(.18,.20,.10,24),white);collar.position.set(0,1.49,0);outfit.add(collar);
+    outfit.add(leg(black,-.19),leg(black,.19),shoe(blue,-.19,.12),shoe(blue,.19,.12));
+    const band=new THREE.Mesh(new THREE.BoxGeometry(.78,.055,.025),red);band.position.set(0,1.28,.215);outfit.add(band);
+  }else if(dressId==="elite"){
+    const body=torso(black,.64,.78,.43,1.15);outfit.add(body,sleeve(black,-.44),sleeve(black,.44));
+    const chest=new THREE.Mesh(new THREE.BoxGeometry(.25,.42,.025),red);chest.position.set(0,1.18,.235);outfit.add(chest);
+    const belt=new THREE.Mesh(new THREE.BoxGeometry(.76,.07,.44),gold);belt.position.y=.90;outfit.add(belt);
+    outfit.add(leg(black,-.19),leg(black,.19),shoe(red,-.19,.12),shoe(red,.19,.12));
+  }else if(dressId==="champion"){
+    const body=torso(navy,.68,.78,.44,1.16);outfit.add(body,sleeve(navy,-.45),sleeve(navy,.45));
+    const shirt=new THREE.Mesh(new THREE.BoxGeometry(.30,.52,.025),white);shirt.position.set(0,1.19,.235);outfit.add(shirt);
+    const tie=new THREE.Mesh(new THREE.BoxGeometry(.07,.34,.035),red);tie.position.set(0,1.20,.255);outfit.add(tie);
+    const lapelL=new THREE.Mesh(new THREE.BoxGeometry(.18,.38,.025),white);lapelL.rotation.z=-.35;lapelL.position.set(-.14,1.25,.25);outfit.add(lapelL);
+    const lapelR=lapelL.clone();lapelR.rotation.z=.35;lapelR.position.x=.14;outfit.add(lapelR);
+    outfit.add(leg(navy,-.19),leg(navy,.19),shoe(black,-.19,.12),shoe(black,.19,.12));
+  }else{
+    // Starter is deliberately a simple fitted race kit, but it is still a
+    // garment overlay rather than changing the human's skin material.
+    const body=torso(grey,.56,.72,.38,1.18);outfit.add(body,sleeve(grey,-.42),sleeve(grey,.42));
+    outfit.add(leg(grey,-.19),leg(grey,.19),shoe(white,-.19,.12),shoe(white,.19,.12));
+  }
+
+  // Scale clothing to the loaded character's actual height.
+  const box=new THREE.Box3().setFromObject(root);
+  const size=new THREE.Vector3();box.getSize(size);
+  const factor=size.y>0.5?size.y/1.75:1;
+  outfit.scale.setScalar(factor);
+  outfit.position.y=0;
+  root.add(outfit);
+}
+
 function applyDressToModel(root,dressId){
   if(!root)return;
   const dress=DRESS_CATALOG.find(d=>d.id===dressId)||DRESS_CATALOG[0];
-  const parts=root.userData?.dressParts;
-  if(parts){
-    const setMatColor=(obj)=>{
-      if(!obj)return;
-      const mats=Array.isArray(obj.material)?obj.material:[obj.material];
-      mats.forEach(mat=>{
-        if(mat?.color){mat.color.set(dress.color);mat.needsUpdate=true;}
-      });
-    };
-    setMatColor(parts.shirt);
-    (parts.pants||[]).forEach(setMatColor);
-  }
-
-  root.traverse(o=>{
-    if(!o.isMesh)return;
-    const mats=Array.isArray(o.material)?o.material:[o.material];
-    mats.forEach(mat=>{
-      if(!mat)return;
-      const name=((mat.name||"")+" "+(o.name||"")).toLowerCase();
-      // Never recolor skin, face, eyes, teeth or hair.
-      if(/skin|body|face|eye|teeth|hair|lash|brow|nail/i.test(name))return;
-      // Clothing-like materials get the selected outfit color.
-      if(/shirt|top|jacket|coat|hood|dress|pant|trouser|short|cloth|suit|shoe/i.test(name)){
-        if(mat.color)mat.color.set(dress.color);
-        if("roughness" in mat)mat.roughness=.72;
-        if("metalness" in mat)mat.metalness=.04;
-        mat.needsUpdate=true;
-      }
-    });
-  });
+  createStylishOutfit(root,dress.id);
 }
 
 function updateShopUI(){
@@ -224,7 +277,7 @@ function updateShopUI(){
     const owned=playerProfile.owned.includes(dress.id);
     const equipped=playerProfile.equipped===dress.id;
     const card=document.createElement("div");card.className="dressCard";
-    card.innerHTML="<div class='dressSwatch' style='background:"+dress.color+"'></div><b>"+dress.name+"</b><small>"+(dress.price?dress.price+" points":"FREE")+"</small>";
+    card.innerHTML="<b>👕 "+dress.name+"</b><small style='display:block;margin-top:5px'>"+dress.style+"</small><small style='display:block;margin-top:4px'>"+(dress.price?dress.price+" points":"FREE")+"</small>";
     const btn=document.createElement("button");
     btn.textContent=equipped?"EQUIPPED":owned?"EQUIP":"BUY • "+dress.price;
     btn.disabled=equipped;
