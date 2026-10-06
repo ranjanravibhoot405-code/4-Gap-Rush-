@@ -1044,8 +1044,9 @@ function animate(){
     }
     gapObjects.forEach((gap,i)=>{
       const at=typeof gaps[i]==="number"?gaps[i]:gaps[i].at;
-      gap.position.z=3-(at-distance)/10;
-      // Do not let a giant ravine dominate the third-person camera from far\n      // away. Reveal the gap as the runner approaches it; the jump prompt\n      // still appears exactly 2 m before the checkpoint.\n      gap.visible=(at-distance)>-20&&(at-distance)<38;
+      gap.position.z=3-at/10;
+      // Keep the gap fixed to the road and reveal it early enough to be seen before the jump window.
+      gap.visible=(at-distance)>-25&&(at-distance)<150;
     });
 
     const runT=Date.now()*.009;
