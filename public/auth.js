@@ -86,17 +86,26 @@ async function saveCloudProfile(profile) {
 }
 async function afterSignIn(user) {
   if (!user) return;
-  const local = currentLocalProfile();
+  const previousUid = localStorage.getItem("4gaprush_last_uid") || "";
+  // Never import one person's locally cached points/outfits into a different
+  // account on a shared device. A first-ever sign-in can migrate local progress;
+  // anonymous guests can keep their own local progress while linking providers.
+  const mayMigrateLocal = !previousUid || previousUid === user.uid || user.isAnonymous;
+  const local = mayMigrateLocal ? currentLocalProfile() : {points:0,owned:["starter"],equipped:"starter",lastRewardRace:""};
   const cloud = await readCloudProfile(user);
+  localStorage.setItem("4gaprush_last_uid", user.uid);
   if (cloud) {
-    // Cloud is the durable account profile. Preserve any progress made locally
-    // since the last sync rather than silently discarding it.
-    const merged = {
+    const merged = mayMigrateLocal ? {
       points: Math.max(local.points, Number(cloud.points) || 0),
       owned: [...new Set(["starter", ...(cloud.owned || []), ...local.owned])],
       equipped: local.equipped && (local.owned.includes(local.equipped) || (cloud.owned||[]).includes(local.equipped))
         ? local.equipped : (cloud.equipped || "starter"),
       lastRewardRace: local.lastRewardRace || cloud.lastRewardRace || ""
+    } : {
+      points: Math.max(0, Number(cloud.points) || 0),
+      owned: [...new Set(["starter", ...(cloud.owned || [])])],
+      equipped: cloud.equipped || "starter",
+      lastRewardRace: cloud.lastRewardRace || ""
     };
     cloudReady = true;
     applyProfile(merged);
