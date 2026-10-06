@@ -42,6 +42,27 @@ button:disabled{opacity:.35}
 <h1>⚡ 4 GAP RUSH 3D</h1>
 <p>MULTIPLAYER RACING • UP TO 8 PLAYERS</p>
 
+<div class="panel" id="accountPanel">
+  <h3>🔐 PLAYER ACCOUNT</h3>
+  <p id="accountStatus" style="color:#cbd5e1;margin:6px">Not signed in — guest play is available.</p>
+  <div id="accountButtons">
+    <button id="googleLoginBtn" type="button">Continue with Google</button>
+    <button id="guestLoginBtn" type="button">Continue as Guest</button>
+  </div>
+  <div style="border-top:1px solid #39415d;margin:12px 0;padding-top:10px">
+    <input id="phoneNumber" type="tel" inputmode="tel" placeholder="+91 mobile number" autocomplete="tel">
+    <button id="sendOtpBtn" type="button">SEND OTP</button>
+    <div id="otpStep" class="hidden">
+      <input id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit OTP">
+      <button id="verifyOtpBtn" type="button">VERIFY OTP</button>
+    </div>
+    <div id="recaptcha-container"></div>
+  </div>
+  <button id="signOutBtn" type="button" class="hidden">SIGN OUT</button>
+  <small style="display:block;color:#cbd5e1">Signed-in accounts can sync points and outfits across devices once cloud profile storage is configured.</small>
+  <p id="authMessage" role="status" style="font-size:13px;color:#ffd166;margin:6px"></p>
+</div>
+
 <div class="panel">
 <input id="name" placeholder="Player name" value="Ravi Ranjan">
 <br><label for="character" style="display:block;margin:8px;color:#50f6c5;font-weight:bold">Choose your runner</label><select id="character" style="padding:12px;border-radius:9px;font-size:16px;width:90%;max-width:300px"><option value="nobita">Nobita-style Boy</option><option value="suzuka">Suzuka-style Girl</option></select><p style="font-size:13px;color:#cbd5e1">Choose before creating or joining a room.</p>
@@ -173,6 +194,7 @@ function savePlayerProfile(){
   try{localStorage.setItem("4gaprush_profile",JSON.stringify(playerProfile));}catch{}
   updateShopUI();
   applyDressToModel(lobbyPreviewModel,playerProfile.equipped);
+  window.dispatchEvent(new CustomEvent("4gaprush-profile-changed",{detail:{...playerProfile,owned:[...playerProfile.owned]}}));
 }
 
 function currentDress(){
@@ -1461,5 +1483,6 @@ document.addEventListener("visibilitychange",()=>{
 });
 window.addEventListener("beforeunload",()=>{intentionallyClosed=true;});
 </script>
+<script type="module" src="/auth.js"></script>
 </body>
 </html>
