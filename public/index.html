@@ -115,7 +115,7 @@ let cameraTouchId=null;
 let playerLane=1;
 let targetLane=1;
 const laneX=[-3,-1,1,3]; // Four clearly separated racing lanes across the 12m road
-let opponentModelTemplate=null;
+let opponentModelTemplate=null;\nlet localHumanMixer=null;
 let opponentModelLoading=false;
 let opponentAnimations=[];
 let boostTimer=0;
@@ -823,45 +823,94 @@ function init3D(){
     }
   }
 
-  // Animated 3D human runner (not a vehicle/object)
+  // Real human runner: keep a small procedural fallback, then replace it with a textured,
+// rigged human GLB. The fallback is only used if the model CDN is unavailable.
   car=new THREE.Group();
-  // Procedural fallback must stay human-sized (~0.75m), otherwise on mobile
-  // it can fill the third-person camera when the GLB is unavailable.
-  car.scale.setScalar(0.65);
-  const chosen=document.getElementById("character")?.value||"nobita";
-  const girl=chosen==="suzuka";
-  const skin=new THREE.MeshStandardMaterial({color:0xf2c39a,roughness:.8});
-  const shirt=new THREE.MeshStandardMaterial({color:girl?0xff79b7:0x2563eb,roughness:.65});
-  const shorts=new THREE.MeshStandardMaterial({color:girl?0xfce7f3:0x1e40af,roughness:.8});
-  const shoes=new THREE.MeshStandardMaterial({color:0xf8fafc,roughness:.5});
-  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.32,.58,6,12),shirt); torso.position.y=1.55; car.add(torso);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(girl?.31:.32,24,20),skin); head.scale.set(1,1.05,.92); head.position.y=2.05; car.add(head);
-  const nose=new THREE.Mesh(new THREE.SphereGeometry(.075,10,8),skin);nose.scale.set(.8,1,1.2);nose.position.set(0,2.31,.3);car.add(nose);
-  const eyeMat=new THREE.MeshStandardMaterial({color:0x171717,roughness:.4});
-  for(const side of [-1,1]){
-    const eye=new THREE.Mesh(new THREE.SphereGeometry(.035,10,8),eyeMat);eye.position.set(side*.105,2.39,.286);car.add(eye);
-    const ear=new THREE.Mesh(new THREE.SphereGeometry(.075,10,8),skin);ear.position.set(side*.31,2.34,0);car.add(ear);
+  car.scale.setScalar(0.75);
+
+  function buildFallbackRunner(root){
+    const chosen=document.getElementById("character")?.value||"nobita";
+    const girl=chosen==="suzuka";
+    const skin=new THREE.MeshStandardMaterial({color:0xf2c39a,roughness:.8});
+    const shirt=new THREE.MeshStandardMaterial({color:girl?0xff79b7:0x2563eb,roughness:.65});
+    const shorts=new THREE.MeshStandardMaterial({color:girl?0xfce7f3:0x1e40af,roughness:.8});
+    const shoes=new THREE.MeshStandardMaterial({color:0xf8fafc,roughness:.5});
+    const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.32,.58,6,12),shirt); torso.position.y=1.55; root.add(torso);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(.32,24,20),skin); head.scale.set(1,1.05,.92); head.position.y=2.05; root.add(head);
+    const hairMat=new THREE.MeshStandardMaterial({color:0x21160f});
+    const hair=new THREE.Mesh(new THREE.SphereGeometry(.36,20,12,0,Math.PI*2,0,Math.PI*.62),hairMat); hair.position.y=2.18; root.add(hair);
+    const limbs=[];
+    function makeLimb(x,y,len,mat,arm){
+      const pivot=new THREE.Group(); pivot.position.set(x,y,0);
+      const limb=new THREE.Mesh(new THREE.CapsuleGeometry(arm?.105:.14,len,4,8),mat);
+      limb.position.y=-len/2; pivot.add(limb); root.add(pivot); return pivot;
+    }
+    for(const side of [-1,1]){
+      const arm=makeLimb(side*.43,1.9,.62,skin,true); limbs.push({part:arm,phase:side===-1?0:Math.PI,arm:true});
+      const leg=makeLimb(side*.2,1.15,.78,shorts,false); limbs.push({part:leg,phase:side===-1?Math.PI:0,arm:false});
+      const shoe=new THREE.Mesh(new THREE.BoxGeometry(.25,.13,.42),shoes); shoe.position.set(side*.2,.12,.12); root.add(shoe);
+    }
+    window.runnerLimbs=limbs;
   }
-  const neck=new THREE.Mesh(new THREE.CylinderGeometry(.12,.14,.22,12),skin);neck.position.y=1.78;car.add(neck);
-  const hairMat=new THREE.MeshStandardMaterial({color:0x21160f});
-  const hair=new THREE.Mesh(new THREE.SphereGeometry(girl?.34:.36,20,12,0,Math.PI*2,0,Math.PI*.62),hairMat); hair.position.y=2.18; car.add(hair);
-  if(girl){const backHair=new THREE.Mesh(new THREE.SphereGeometry(.28,16,12),hairMat);backHair.scale.set(.9,1.25,.65);backHair.position.set(0,2.18,-.12);car.add(backHair);const bow=new THREE.Mesh(new THREE.SphereGeometry(.09,12,8),new THREE.MeshStandardMaterial({color:0xff3b8d}));bow.position.set(.25,2.68,0);car.add(bow);}
-  else {const glassesMat=new THREE.MeshStandardMaterial({color:0x111827,metalness:.35,roughness:.3});for(const x of [-.13,.13]){const ring=new THREE.Mesh(new THREE.TorusGeometry(.105,.018,8,20),glassesMat);ring.position.set(x,2.37,.28);car.add(ring);}const bridge=new THREE.Mesh(new THREE.BoxGeometry(.08,.018,.02),glassesMat);bridge.position.set(0,2.37,.29);car.add(bridge);}
-  if(girl){const skirt=new THREE.Mesh(new THREE.CylinderGeometry(.22,.38,.3,16),new THREE.MeshStandardMaterial({color:0xf472b6}));skirt.position.y=1.12;car.add(skirt);}
-  const limbs=[];
-  function makeLimb(x,y,len,mat,arm){const pivot=new THREE.Group();pivot.position.set(x,y,0);const limb=new THREE.Mesh(new THREE.CapsuleGeometry(arm?.105:.14,len,4,8),mat);limb.position.y=-len/2;pivot.add(limb);car.add(pivot);return pivot;}
-  for(const side of [-1,1]){
-    const arm=makeLimb(side*.43,1.9,.62,skin,true); limbs.push({part:arm,phase:side===-1?0:Math.PI,arm:true});
-    const leg=makeLimb(side*.2,1.15,.78,shorts,false); limbs.push({part:leg,phase:side===-1?Math.PI:0,arm:false});
-    const shoe=new THREE.Mesh(new THREE.BoxGeometry(.25,.13,.42),shoes);shoe.position.set(side*.2,.12,.12);car.add(shoe);
-  }
+
+  buildFallbackRunner(car);
   playerLane=Math.max(0,Math.min(laneX.length-1,Number(playerLane)||0));
   targetLane=Math.max(0,Math.min(laneX.length-1,Number(targetLane)||playerLane));
-  car.position.set(laneX[targetLane],0,3); scene.add(car);
-  window.runnerLimbs=limbs;
-  // Keep the procedural runner as the permanent local avatar.
-  // Do not depend on a remote GLB/model server: the game must still load
-  // normally after days of inactivity or when an external asset is unavailable.
+  car.position.set(laneX[targetLane],0,3);
+  scene.add(car);
+
+  // This is the actual local-player model. It is loaded after the scene is
+  // created so the blue procedural mannequin cannot remain as the main avatar.
+  // The model is a CC0 textured humanoid with walk/idle clips.
+  (async()=>{
+    try{
+      const {GLTFLoader}=await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js");
+      const loader=new GLTFLoader();
+      const modelUrl="https://raw.githubusercontent.com/annasba07/threedpt/main/public/models/Human.glb";
+      loader.load(modelUrl,gltf=>{
+        if(!car||!scene)return;
+        const human=gltf.scene;
+        const box=new THREE.Box3().setFromObject(human);
+        const size=new THREE.Vector3(); box.getSize(size);
+        if(size.y>0.01) human.scale.setScalar(1.75/size.y);
+        const fitted=new THREE.Box3().setFromObject(human);
+        human.position.set(0,-fitted.min.y,0);
+        human.rotation.y=Math.PI;
+        human.traverse(o=>{
+          if(!o.isMesh)return;
+          o.castShadow=true; o.receiveShadow=true;
+          const mats=Array.isArray(o.material)?o.material:[o.material];
+          mats.forEach(mat=>{
+            if(!mat)return;
+            mat.roughness=Math.min(Number.isFinite(mat.roughness)?mat.roughness:.75,.9);
+            if("metalness" in mat)mat.metalness=Math.min(Number.isFinite(mat.metalness)?mat.metalness:0,.15);
+            mat.needsUpdate=true;
+          });
+        });
+        [...car.children].forEach(ch=>car.remove(ch));
+        car.add(human);
+        window.runnerLimbs=[];
+        humanMixer=new THREE.AnimationMixer(human);
+        const clips=gltf.animations||[];
+        const runClip=clips.find(a=>/run|jog|walk/i.test(a.name))||clips[0];
+        if(runClip){
+          const action=humanMixer.clipAction(runClip);
+          action.reset().play();
+          action.timeScale=1.15;
+        }
+        car.userData.realistic=true;
+        car.userData.human=human;
+        console.log("4 GAP RUSH: realistic human runner loaded");
+      },undefined,err=>{
+        console.warn("Real human model failed; keeping fallback runner.",err);
+      });
+    }catch(err){
+      console.warn("Real human loader unavailable; keeping fallback runner.",err);
+    }
+  })();
+
+  // Do not depend on the remote model for game startup: the fallback remains
+  // available, while the realistic model replaces it as soon as it loads.
   humanMixer=null;
 
   // Dry, deep ravines: deliberately NO water mesh or water material.
