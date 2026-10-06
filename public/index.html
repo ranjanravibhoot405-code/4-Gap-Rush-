@@ -182,19 +182,34 @@ function currentDress(){
 function applyDressToModel(root,dressId){
   if(!root)return;
   const dress=DRESS_CATALOG.find(d=>d.id===dressId)||DRESS_CATALOG[0];
+  const parts=root.userData?.dressParts;
+  if(parts){
+    const setMatColor=(obj)=>{
+      if(!obj)return;
+      const mats=Array.isArray(obj.material)?obj.material:[obj.material];
+      mats.forEach(mat=>{
+        if(mat?.color){mat.color.set(dress.color);mat.needsUpdate=true;}
+      });
+    };
+    setMatColor(parts.shirt);
+    (parts.pants||[]).forEach(setMatColor);
+  }
+
   root.traverse(o=>{
     if(!o.isMesh)return;
     const mats=Array.isArray(o.material)?o.material:[o.material];
     mats.forEach(mat=>{
       if(!mat)return;
       const name=((mat.name||"")+" "+(o.name||"")).toLowerCase();
-      if(!o.userData.originalMaterialColor && mat.color) o.userData.originalMaterialColor=mat.color.clone();
-      if(/skin|face|eye|teeth|hair|lash|brow|nail/i.test(name))return;
-      if(!mat.userData)mat.userData={};
-      if(mat.color)mat.color.set(dress.color);
-      if("roughness" in mat)mat.roughness=.72;
-      if("metalness" in mat)mat.metalness=.04;
-      mat.needsUpdate=true;
+      // Never recolor skin, face, eyes, teeth or hair.
+      if(/skin|body|face|eye|teeth|hair|lash|brow|nail/i.test(name))return;
+      // Clothing-like materials get the selected outfit color.
+      if(/shirt|top|jacket|coat|hood|dress|pant|trouser|short|cloth|suit|shoe/i.test(name)){
+        if(mat.color)mat.color.set(dress.color);
+        if("roughness" in mat)mat.roughness=.72;
+        if("metalness" in mat)mat.metalness=.04;
+        mat.needsUpdate=true;
+      }
     });
   });
 }
@@ -270,7 +285,18 @@ async function initLobbyPreview(){
     const loop=()=>{requestAnimationFrame(loop);const dt=clock.getDelta();if(lobbyPreviewMixer)lobbyPreviewMixer.update(dt);if(lobbyPreviewModel)lobbyPreviewModel.rotation.y=Math.PI+Math.sin(performance.now()*.0007)*.18;lobbyPreviewRenderer.render(lobbyPreviewScene,lobbyPreviewCamera);};
     loop();
   }catch(err){
-    const ps=document.getElementById("previewStatus");if(ps)ps.textContent="Realistic human model loading failed — race will show the same status.";
+    // Never leave the lobby character area blank. Show the same dressable
+    // fallback runner while the real human asset is unavailable.
+    lobbyPreviewModel=new THREE.Group();
+    lobbyPreviewModel.scale.setScalar(.82);
+    buildFallbackRunner(lobbyPreviewModel);
+    lobbyPreviewScene.add(lobbyPreviewModel);
+    applyDressToModel(lobbyPreviewModel,playerProfile.equipped);
+    lobbyPreviewReady=true;
+    const ps=document.getElementById("previewStatus");if(ps)ps.textContent="Human model unavailable — fallback preview";
+    const clock=new THREE.Clock();
+    const loop=()=>{requestAnimationFrame(loop);const dt=clock.getDelta();if(lobbyPreviewModel)lobbyPreviewModel.rotation.y=Math.PI+Math.sin(performance.now()*.0007)*.18;lobbyPreviewRenderer.render(lobbyPreviewScene,lobbyPreviewCamera);};
+    loop();
     console.warn("Lobby human preview failed",err);
   }
 }
@@ -1016,7 +1042,7 @@ function init3D(){
     const shirt=new THREE.MeshStandardMaterial({color:girl?0xff79b7:0x2563eb,roughness:.65});
     const shorts=new THREE.MeshStandardMaterial({color:girl?0xfce7f3:0x1e40af,roughness:.8});
     const shoes=new THREE.MeshStandardMaterial({color:0xf8fafc,roughness:.5});
-    const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.32,.58,6,12),shirt); torso.position.y=1.55; root.add(torso);
+    const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.32,.58,6,12),shirt); torso.position.y=1.55; torso.userData.dressPart="shirt"; root.add(torso);
     const head=new THREE.Mesh(new THREE.SphereGeometry(.32,24,20),skin); head.scale.set(1,1.05,.92); head.position.y=2.05; root.add(head);
     const hairMat=new THREE.MeshStandardMaterial({color:0x21160f});
     const hair=new THREE.Mesh(new THREE.SphereGeometry(.36,20,12,0,Math.PI*2,0,Math.PI*.62),hairMat); hair.position.y=2.18; root.add(hair);
@@ -1028,13 +1054,15 @@ function init3D(){
     }
     for(const side of [-1,1]){
       const arm=makeLimb(side*.43,1.9,.62,skin,true); limbs.push({part:arm,phase:side===-1?0:Math.PI,arm:true});
-      const leg=makeLimb(side*.2,1.15,.78,shorts,false); limbs.push({part:leg,phase:side===-1?Math.PI:0,arm:false});
+      const leg=makeLimb(side*.2,1.15,.78,shorts,false); leg.userData.dressPart="pants"; limbs.push({part:leg,phase:side===-1?Math.PI:0,arm:false});
       const shoe=new THREE.Mesh(new THREE.BoxGeometry(.25,.13,.42),shoes); shoe.position.set(side*.2,.12,.12); root.add(shoe);
     }
     window.runnerLimbs=limbs;
+    root.userData.dressParts={shirt,pants:limbs.filter(x=>!x.arm).map(x=>x.part)};
   }
 
   buildFallbackRunner(car);
+  applyDressToModel(car,playerProfile.equipped);
   playerLane=Math.max(0,Math.min(laneX.length-1,Number(playerLane)||0));
   targetLane=Math.max(0,Math.min(laneX.length-1,Number(targetLane)||playerLane));
   car.position.set(laneX[targetLane],0,3);
@@ -1090,6 +1118,7 @@ function init3D(){
         [...car.children].forEach(ch=>car.remove(ch));
         applyDressToModel(human,playerProfile.equipped);
         car.add(human);
+        applyDressToModel(human,playerProfile.equipped);
         window.runnerLimbs=[];
         car.userData.realistic=true;
         car.userData.human=human;
@@ -1100,7 +1129,8 @@ function init3D(){
         console.log("4 GAP RUSH: textured human loaded from same-origin /assets/human.glb");
       },undefined,err=>{
         settled=true; clearTimeout(fallbackTimer);
-        if(raceModelStatus){raceModelStatus.textContent="👤 HUMAN: ERROR — fallback";raceModelStatus.style.color="#ff6b6b";}
+        if(raceModelStatus){raceModelStatus.textContent="👤 HUMAN: ERROR — fallback";
+        raceModelStatus.title="Check /assets/human-status";raceModelStatus.style.color="#ff6b6b";}
         console.warn("4 GAP RUSH: human GLB failed; visible fallback retained",err);
       });
     }catch(err){
