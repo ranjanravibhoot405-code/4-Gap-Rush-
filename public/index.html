@@ -418,6 +418,7 @@ function syncOpponents(players){
     const lane=Number.isFinite(Number(p.lane))?Number(p.lane):(index%4);
     g.userData.lane=lane;
     g.userData.baseX=laneX[lane];
+    g.userData.dress=p.dress||"starter";
     opponentStates.set(p.id,{dist:Number(p.dist)||0,alive:p.alive!==false,finished:!!p.finished,lane,dress:p.dress||"starter"});
     if(g.userData.realistic && g.userData.dress!==(p.dress||"starter")){
       const h=g.userData.human;applyDressToModel(h,p.dress||"starter");g.userData.dress=p.dress||"starter";
