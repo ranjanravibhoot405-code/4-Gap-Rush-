@@ -862,12 +862,12 @@ function init3D(){
 
   // This is the actual local-player model. It is loaded after the scene is
   // created so the blue procedural mannequin cannot remain as the main avatar.
-  // The model is a CC0 textured humanoid with walk/idle clips.
+  // The model is a CC0 realistic textured human with a rigged walk clip, generated from MakeHuman/MPFB.
   (async()=>{
     try{
       const {GLTFLoader}=await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js");
       const loader=new GLTFLoader();
-      const modelUrl="https://threejs.org/examples/models/gltf/Soldier.glb";
+      const modelUrl="https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/human.glb";
       loader.load(modelUrl,gltf=>{
         if(!car||!scene)return;
         const human=gltf.scene;
