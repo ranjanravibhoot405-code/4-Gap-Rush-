@@ -104,7 +104,8 @@ function raceSnapshot(room) {
       alive: p.alive,
       finished: p.finished,
       lane: p.lane,
-      dress: p.dress || "starter"
+      dress: p.dress || "starter",
+      character: p.character || "nobita"
     }))
   };
 }
@@ -144,7 +145,8 @@ function roomState(room) {
       recovery: p.recovery,
       finished: p.finished,
       lane: p.lane,
-      dress: p.dress || "starter"
+      dress: p.dress || "starter",
+      character: p.character || "nobita"
     }))
   };
 }
@@ -220,6 +222,7 @@ wss.on("connection", ws => {
         finished: false,
         lane: room.players.size % 4,
         dress: String(m.dress || "starter"),
+        character: m.character === "suzuka" ? "suzuka" : "nobita",
         ws
       });
 
@@ -275,6 +278,7 @@ wss.on("connection", ws => {
         finished: false,
         lane: room.players.size % 4,
         dress: String(m.dress || "starter"),
+        character: m.character === "suzuka" ? "suzuka" : "nobita",
         ws
       });
 
@@ -340,7 +344,8 @@ wss.on("connection", ws => {
         alive: true,
         finished: false,
         lane: p.lane,
-        dress: p.dress || "starter"
+        dress: p.dress || "starter",
+      character: p.character || "nobita"
       }));
 
       // Send the complete initial race snapshot in the same packet.
@@ -520,7 +525,7 @@ setInterval(() => {
           startedAt:room.startedAt,
           gaps:room.gaps.map(g => ({at:g.at,width:g.width})),
           players:[...room.players.values()].map(p=>({
-            id:p.id,name:p.name,dist:p.dist,alive:p.alive,finished:p.finished,lane:p.lane,dress:p.dress || "starter"
+            id:p.id,name:p.name,dist:p.dist,alive:p.alive,finished:p.finished,lane:p.lane,dress:p.dress || "starter",character:p.character || "nobita"
           }))
         });
       }
