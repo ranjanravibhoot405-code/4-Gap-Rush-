@@ -14,37 +14,70 @@ app.get("/race", (req, res) => res.sendFile(path.join(__dirname, "public", "inde
 
 let humanGlbCache = null;
 let humanGlbLoading = null;
+let humanGlbSource = null;
+let humanGlbLastError = null;
 
-// Serve the human model from the same Render origin. This avoids mobile
-// browser/CDN/CORS failures when GLTFLoader requests a large external GLB.
+const HUMAN_GLB_SOURCES = [
+  "https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/human.glb",
+  "https://raw.githubusercontent.com/Richardengle/3dfiles/main/human.glb"
+];
+
+// Always serve the model from this game's own origin. The browser therefore
+// never has to solve cross-origin/CORS problems for the GLB or its embedded
+// textures.
 app.get("/assets/human.glb", async (req, res) => {
-  const source = "https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/human.glb";
   try {
     if (humanGlbCache) {
       res.set("Content-Type", "model/gltf-binary");
-      res.set("Cache-Control", "public, max-age=86400");
+      res.set("Cache-Control", "public, max-age=86400, immutable");
       return res.send(humanGlbCache);
     }
+
     if (!humanGlbLoading) {
-      humanGlbLoading = fetch(source).then(async r => {
-        if (!r.ok) throw new Error("human GLB upstream HTTP " + r.status);
-        const ab = await r.arrayBuffer();
-        const buf = Buffer.from(ab);
-        if (buf.length < 1000 || buf.toString("ascii",0,4) !== "glTF") {
-          throw new Error("human GLB upstream response is not a valid GLB");
+      humanGlbLoading = (async () => {
+        let lastErr = null;
+        for (const source of HUMAN_GLB_SOURCES) {
+          try {
+            const r = await fetch(source, { redirect: "follow" });
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            const ab = await r.arrayBuffer();
+            const buf = Buffer.from(ab);
+            if (buf.length < 100000 || buf.toString("ascii",0,4) !== "glTF") {
+              throw new Error("response is not a valid GLB");
+            }
+            humanGlbCache = buf;
+            humanGlbSource = source;
+            humanGlbLastError = null;
+            console.log("4 GAP RUSH: human GLB ready from", source, "bytes:", buf.length);
+            return buf;
+          } catch (err) {
+            lastErr = err;
+            console.warn("4 GAP RUSH: human source failed:", source, err.message);
+          }
         }
-        humanGlbCache = buf;
-        return buf;
-      }).finally(() => { humanGlbLoading = null; });
+        throw lastErr || new Error("all human sources failed");
+      })().finally(() => { humanGlbLoading = null; });
     }
+
     const buf = await humanGlbLoading;
     res.set("Content-Type", "model/gltf-binary");
-    res.set("Cache-Control", "public, max-age=86400");
+    res.set("Cache-Control", "public, max-age=86400, immutable");
     res.send(buf);
   } catch (err) {
-    console.error("Human GLB proxy failed:", err.message);
-    res.status(502).json({ ok:false, error:"Human model unavailable" });
+    humanGlbLastError = String(err?.message || err);
+    console.error("Human GLB proxy failed:", humanGlbLastError);
+    res.status(502).json({ ok:false, error:"Human model unavailable", detail:humanGlbLastError });
   }
+});
+
+app.get("/assets/human-status", (req,res) => {
+  res.json({
+    ok: !!humanGlbCache,
+    loading: !!humanGlbLoading,
+    source: humanGlbSource,
+    bytes: humanGlbCache?.length || 0,
+    error: humanGlbLastError
+  });
 });
 
 const send = (ws, msg) => {
