@@ -1,7 +1,7 @@
 import { firebaseConfig } from "./firebase-config.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import {
-  getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup,
+  getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, linkWithPopup,
   signInAnonymously, signOut, RecaptchaVerifier, signInWithPhoneNumber,
   PhoneAuthProvider, linkWithCredential, signInWithCredential
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
@@ -52,9 +52,7 @@ function applyProfile(p) {
   };
   if (!clean.owned.includes(clean.equipped)) clean.equipped = "starter";
   localStorage.setItem("4gaprush_profile", JSON.stringify(clean));
-  // The existing game owns its profile object; reload once so every shop/race
-  // subsystem reads the authenticated cloud profile consistently.
-  location.reload();
+  window.dispatchEvent(new CustomEvent("4gaprush-profile-load", {detail:clean}));
 }
 async function readCloudProfile(user) {
   if (!db || !user) return null;
