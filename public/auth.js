@@ -2,6 +2,7 @@ import { firebaseConfig } from "./firebase-config.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, linkWithPopup,
+  signInWithRedirect, linkWithRedirect, getRedirectResult,
   signInAnonymously, signOut, RecaptchaVerifier, signInWithPhoneNumber,
   PhoneAuthProvider, linkWithCredential, signInWithCredential
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
@@ -163,16 +164,46 @@ if (!configReady()) {
       if (user) afterSignIn(user).catch(e => message(e.message || "Could not load profile.", true));
       else cloudReady = false;
     });
+
+    // Mobile browsers can block OAuth popups. Resolve any Google redirect
+    // started on the previous page before the user continues.
+    getRedirectResult(auth).then(result => {
+      if (result?.user) message("Google account connected.");
+    }).catch(e => {
+      if (e?.code) {
+        console.warn("Google redirect sign-in:", e.code, e.message);
+        message(e.code === "auth/unauthorized-domain"
+          ? "Firebase blocked this domain. Add the Render domain to Authorized domains."
+          : (e.message || "Google sign-in failed."), true);
+      }
+    });
     googleBtn.addEventListener("click", async () => {
       try {
         const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: "select_account" });
         const user = auth.currentUser;
-        if (user?.isAnonymous) await linkWithPopup(user, provider);
-        else await signInWithPopup(auth, provider);
-        message("Google account connected.");
+        try {
+          if (user?.isAnonymous) await linkWithPopup(user, provider);
+          else await signInWithPopup(auth, provider);
+          message("Google account connected.");
+        } catch (popupError) {
+          // On Android/mobile, fall back to a full-page OAuth redirect when
+          // the popup is blocked or unsupported. The redirect result is handled
+          // above after Google sends the browser back to the game.
+          const code = popupError?.code || "";
+          if (["auth/popup-blocked","auth/popup-closed-by-user","auth/cancelled-popup-request"].includes(code)) {
+            if (user?.isAnonymous) await linkWithRedirect(user, provider);
+            else await signInWithRedirect(auth, provider);
+            return;
+          }
+          throw popupError;
+        }
       } catch (e) {
-        message(e.code === "auth/unauthorized-domain"
-          ? "This domain is not authorized in Firebase Authentication."
+        const code = e?.code || "";
+        message(code === "auth/unauthorized-domain"
+          ? "Firebase blocked this domain. Add four-gap-rush-klzw.onrender.com to Authentication → Settings → Authorized domains."
+          : code === "auth/operation-not-allowed"
+          ? "Google Sign-in is not enabled in Firebase Authentication."
           : (e.message || "Google sign-in failed."), true);
       }
     });
@@ -195,7 +226,14 @@ if (!configReady()) {
       } catch (e) {
         try { recaptcha?.clear(); } catch {}
         recaptcha = null;
-        message(e.message || "Could not send OTP. Check Phone provider, domain and SMS region settings.", true);
+        const code = e?.code || "";
+        message(code === "auth/operation-not-allowed"
+          ? "Phone Sign-in is not enabled in Firebase Authentication."
+          : code === "auth/unauthorized-domain"
+          ? "This game domain is not authorized in Firebase Authentication."
+          : code === "auth/too-many-requests"
+          ? "Firebase temporarily throttled SMS requests. Try again later or use a different test number."
+          : (e.message || "Could not send OTP. Check Phone provider, Authorized domains and SMS region settings."), true);
       }
     });
     verifyBtn.addEventListener("click", async () => {
