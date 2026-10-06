@@ -90,7 +90,7 @@ async function afterSignIn(user) {
   // Never import one person's locally cached points/outfits into a different
   // account on a shared device. A first-ever sign-in can migrate local progress;
   // anonymous guests can keep their own local progress while linking providers.
-  const mayMigrateLocal = !previousUid || previousUid === user.uid || user.isAnonymous;
+  const mayMigrateLocal = !previousUid || previousUid === user.uid;
   const local = mayMigrateLocal ? currentLocalProfile() : {points:0,owned:["starter"],equipped:"starter",lastRewardRace:""};
   const cloud = await readCloudProfile(user);
   localStorage.setItem("4gaprush_last_uid", user.uid);
