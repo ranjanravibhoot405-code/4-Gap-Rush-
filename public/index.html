@@ -209,12 +209,12 @@ function createStylishOutfit(root,dressId){
     const g=new THREE.Group();g.add(makeOutfitPart(new THREE.BoxGeometry(w,h,d),mat,"garment-body"));g.position.y=y;return g;
   };
   const sleeve=(mat,x)=>{
-    const p=new THREE.Group();p.position.set(x,1.28,0);
+    const p=new THREE.Group();p.name=x<0?"sleeveL":"sleeveR";p.position.set(x,1.28,0);
     const m=new THREE.Mesh(new THREE.CapsuleGeometry(.105,.52,5,10),mat);
     m.rotation.z=x<0?-.12:.12;m.position.y=-.02;m.castShadow=true;p.add(m);return p;
   };
   const leg=(mat,x)=>{
-    const p=new THREE.Group();p.position.set(x,.68,0);
+    const p=new THREE.Group();p.name=x<0?"legL":"legR";p.position.set(x,.68,0);
     const m=new THREE.Mesh(new THREE.CapsuleGeometry(.135,.62,5,10),mat);
     m.position.y=-.17;m.castShadow=true;p.add(m);return p;
   };
@@ -259,6 +259,24 @@ function createStylishOutfit(root,dressId){
   outfit.scale.setScalar(factor);
   outfit.position.y=0;
   root.add(outfit);
+
+  // If the GLB is rigged, attach sleeves and trouser legs to arm/thigh
+  // bones so the purchased outfit moves naturally with the runner.
+  const bones=[];
+  root.traverse(o=>{if(o.isBone)bones.push(o);});
+  const findBone=(side,type)=>{
+    const s=side==="L"?"(left|l)":"(right|r)";
+    const t=type==="arm"?"(upper.?arm|arm)":"(upper.?leg|thigh|leg)";
+    return bones.find(b=>new RegExp(s+".*"+t+"|"+t+".*"+s,"i").test(b.name))||null;
+  };
+  ["L","R"].forEach(side=>{
+    const arm=outfit.getObjectByName("sleeve"+side);
+    const leg=outfit.getObjectByName("leg"+side);
+    const armBone=findBone(side,"arm");
+    const legBone=findBone(side,"leg");
+    if(arm&&armBone)armBone.attach(arm);
+    if(leg&&legBone)legBone.attach(leg);
+  });
 }
 
 function applyDressToModel(root,dressId){
