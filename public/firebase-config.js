@@ -1,13 +1,11 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+// Firebase Web configuration for 4 GAP RUSH.
+// Do not import "firebase/app" here: this file is loaded directly by the
+// browser as an ES module, and the bare npm specifier is not resolvable there.
+// public/auth.js imports the Firebase SDK from the official CDN and initializes
+// the app once, using this configuration object.
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyCf76898CAnqWqd_HS7nF6wuvFyeyNEBlg",
+export const firebaseConfig = {
+  apiKey: "AIzaSyCf76898CAnQwqd_HS7nF6wuvFyeyNEBlg",
   authDomain: "gap-rush-c4ca1.firebaseapp.com",
   projectId: "gap-rush-c4ca1",
   storageBucket: "gap-rush-c4ca1.firebasestorage.app",
@@ -15,7 +13,3 @@ const firebaseConfig = {
   appId: "1:327058061677:web:f5feab44488ff61c5ec264",
   measurementId: "G-PCLF23F2F8"
 };
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
