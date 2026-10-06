@@ -128,7 +128,7 @@ function makeOpponent(id,name,index){
   // Fallback opponent meshes are built at ~2.4m. Keep the visual human-sized
   // so a missing/slow GLB can never fill the whole mobile camera.
   const visual=new THREE.Group();
-  visual.scale.setScalar(0.38);
+  visual.scale.setScalar(0.65);
   const hue=[0xff4d4d,0x22c55e,0xa855f7,0xf59e0b,0x06b6d4,0xec4899,0x84cc16][index%7];
   const shirt=new THREE.MeshStandardMaterial({color:hue,roughness:.7});
   const skin=new THREE.MeshStandardMaterial({color:0xd99a72,roughness:.85});
@@ -674,7 +674,7 @@ function init3D(){
   // Road-local Z runs from +12 (behind the runner) toward -290 (ahead).
   const roadSegments=[];
   const gapCenters=gaps.map(g=>3-(typeof g==="number"?g:g.at)/10).sort((a,b)=>b-a);
-  const pitHalfLength=4.8; // 9.6 m visible pit, matching the jump challenge.
+  const pitHalfLength=0.9; // 18 m visible open gap in the 10m/world-unit track scale.
   let roadCursor=12;
   function addRoadSlab(fromZ,toZ){
     const length=fromZ-toZ;
@@ -827,7 +827,7 @@ function init3D(){
   car=new THREE.Group();
   // Procedural fallback must stay human-sized (~0.75m), otherwise on mobile
   // it can fill the third-person camera when the GLB is unavailable.
-  car.scale.setScalar(0.38);
+  car.scale.setScalar(0.65);
   const chosen=document.getElementById("character")?.value||"nobita";
   const girl=chosen==="suzuka";
   const skin=new THREE.MeshStandardMaterial({color:0xf2c39a,roughness:.8});
@@ -898,30 +898,30 @@ function init3D(){
     const at=typeof g==="number"?g:g.at;
     const ravine=new THREE.Group();
     // Dark floor, far below the road: this is a dry chasm, not a blue surface.
-    const floor=new THREE.Mesh(new THREE.BoxGeometry(19,.7,15.5),cliffDarkMat);
+    const floor=new THREE.Mesh(new THREE.BoxGeometry(19,.7,2.8),cliffDarkMat);
     floor.position.set(0,-1.2,0);floor.receiveShadow=true;ravine.add(floor);
     // Rough cut-earth walls on both sides and both ends of the opening.
     for(const side of [-1,1]){
       // Side walls stay outside the 12m road opening so they cannot
       // become a full-screen wall in the runner's forward view.
-      const wall=new THREE.Mesh(new THREE.BoxGeometry(.8,4.8,15.5),cliffMat);
+      const wall=new THREE.Mesh(new THREE.BoxGeometry(.8,4.8,2.8),cliffMat);
       wall.position.set(side*6.55,-2.35,0);wall.rotation.z=side*.06;wall.receiveShadow=true;ravine.add(wall);
       for(let n=0;n<16;n++){
-        const boulder=new THREE.Mesh(new THREE.DodecahedronGeometry(.25+Math.random()*.65,0),rubbleMats[Math.floor(Math.random()*rubbleMats.length)]);
+        const boulder=new THREE.Mesh(new THREE.DodecahedronGeometry(.18+Math.random()*.45,0),rubbleMats[Math.floor(Math.random()*rubbleMats.length)]);
         boulder.scale.set(1.2,.7,.8);
         // Decorative rocks must stay outside the 12m racing surface.
-        boulder.position.set(side*(6.9+Math.random()*1.4),-1.0-Math.random()*3.1,-4.3+Math.random()*8.6);boulder.rotation.set(Math.random(),Math.random()*3,Math.random());boulder.castShadow=true;ravine.add(boulder);
+        boulder.position.set(side*(6.9+Math.random()*1.4),-0.8-Math.random()*2.2,-4.3+Math.random()*2.4);boulder.rotation.set(Math.random(),Math.random()*3,Math.random());boulder.castShadow=true;ravine.add(boulder);
       }
     }
     // IMPORTANT: do NOT put a solid wall across the road at either end.
     // A previous cut-face mesh filled the whole 12.2m road opening, so the
     // third-person camera saw a giant black/brown wall instead of an open gap.
     // Keep only low broken earth lips around the edges and warning stripes.
-    for(const z of [-4.55,4.55]){
+    for(const z of [-0.95,0.95]){
       for(let n=0;n<18;n++){
         const chunk=new THREE.Mesh(new THREE.DodecahedronGeometry(.12+Math.random()*.28,0),ledgeMat);
         const edgeX=-5.9+Math.random()*11.8;
-        chunk.position.set(edgeX,-.12+Math.random()*.25,z+(Math.random()-.5)*.5);
+        chunk.position.set(edgeX,-.12+Math.random()*.25,z+(Math.random()-.5)*.18);
         chunk.rotation.set(Math.random(),Math.random()*3,Math.random());
         ravine.add(chunk);
       }
@@ -1031,8 +1031,8 @@ function animate(){
       // Center markings must stop at the pit too; never draw a stripe over empty space.
       const overPit=gaps.some(g=>{
         const at=typeof g==="number"?g:g.at;
-        const pitZ=3-(at-distance)/10;
-        return Math.abs(line.position.z-pitZ)<5.0;
+        const pitZ=3-at/10;
+        return Math.abs(line.position.z-pitZ)<1.25;
       });
       line.visible=!overPit;
     });
