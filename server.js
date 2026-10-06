@@ -6,15 +6,18 @@ const { WebSocketServer } = require("ws");
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server, clientTracking: true });
 const rooms = new Map();
 
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/race", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
 const send = (ws, msg) => {
-  if (ws.readyState === 1) {
+  if (!ws || ws.readyState !== 1) return;
+  try {
     ws.send(JSON.stringify(msg));
+  } catch (err) {
+    console.error("WebSocket send failed:", err.message);
   }
 };
 
@@ -96,6 +99,7 @@ function leave(ws) {
 
 wss.on("connection", ws => {
   ws.isAlive = true;
+  ws.on("error", err => console.error("WebSocket error:", err.message));
   ws.on("pong", () => { ws.isAlive = true; });
 
   ws.on("message", raw => {
@@ -398,6 +402,10 @@ wss.on("connection", ws => {
   ws.on("close", () => leave(ws));
 });
 
+app.get("/health", (req,res) => {
+  res.status(200).json({ok:true,service:"4-gap-rush",rooms:rooms.size});
+});
+
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
@@ -421,7 +429,15 @@ setInterval(() => {
       }
     }
   });
-}, 100);
+}, 200);
+
+server.on("error", err => {
+  console.error("HTTP server error:", err);
+});
+
+process.on("unhandledRejection", err => {
+  console.error("Unhandled promise rejection:", err);
+});
 
 server.listen(process.env.PORT || 3000, () => {
   console.log("4 GAP RUSH server running");
