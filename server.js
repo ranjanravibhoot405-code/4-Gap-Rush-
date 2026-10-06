@@ -75,6 +75,14 @@ function raceSnapshot(room) {
   };
 }
 
+function racePoints(finishTime, finished){
+  if(!finished || !Number.isFinite(Number(finishTime))) return 0;
+  // Faster official finish time = more points. The score is intentionally
+  // deterministic so every device sees the same reward for the same time.
+  const seconds=Math.max(0,Number(finishTime)/1000);
+  return Math.max(100, Math.min(1600, Math.round(1600 - seconds*7)));
+}
+
 function makeCode() {
   let chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code;
@@ -345,7 +353,15 @@ wss.on("connection", ws => {
         if(terminal){
           room.ended = true;
           const results = [...room.players.values()]
-            .map(p => ({ name:p.name, finished:p.finished, alive:p.alive, time:p.finishTime ?? null, dist:p.dist }))
+            .map(p => ({
+              id:p.id,
+              name:p.name,
+              finished:p.finished,
+              alive:p.alive,
+              time:p.finishTime ?? null,
+              dist:p.dist,
+              points:racePoints(p.finishTime, p.finished)
+            }))
             .sort((a,b) => a.finished !== b.finished ? (a.finished ? -1 : 1) : (a.time ?? Infinity) - (b.time ?? Infinity));
           broadcast(room,{type:"race_over",results,winner:room.winner});
         }
@@ -426,7 +442,15 @@ wss.on("connection", ws => {
       const terminal=[...room.players.values()].every(p=>p.finished||!p.alive);
       if(terminal){
         room.ended=true;
-        const results=[...room.players.values()].map(p=>({name:p.name,finished:p.finished,alive:p.alive,time:p.finishTime??null,dist:p.dist}))
+        const results=[...room.players.values()].map(p=>({
+          id:p.id,
+          name:p.name,
+          finished:p.finished,
+          alive:p.alive,
+          time:p.finishTime??null,
+          dist:p.dist,
+          points:racePoints(p.finishTime,p.finished)
+        }))
           .sort((a,b)=>a.finished!==b.finished?(a.finished?-1:1):(a.time??Infinity)-(b.time??Infinity));
         broadcast(room,{type:"race_over",results,winner:room.winner||results.find(p=>p.finished)?.name||null});
       }
