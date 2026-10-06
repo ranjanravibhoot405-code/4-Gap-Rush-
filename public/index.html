@@ -7,7 +7,18 @@
 <title>4 GAP RUSH 3D</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#101426;color:white;font-family:Arial;text-align:center} body.racing{overflow:hidden} #lobbyPage{max-width:600px;margin:auto;padding:12px} #racePage{position:fixed;inset:0;z-index:10;background:#080d1b;padding:10px;display:flex;flex-direction:column} #racePage.hidden{display:none} #racePage h2{margin:5px;color:#50f6c5} #racePage #game{height:auto;min-height:0;max-height:none;flex:1;width:100%;} #racePage .raceTop{display:flex;align-items:center;justify-content:space-between;gap:8px} #racePage #controls{bottom:8px} #racePage #controls button{font-size:20px;min-width:62px} #racePage #raceStatus{margin:5px}
+body{margin:0;background:#101426;color:white;font-family:Arial;text-align:center} body.racing{overflow:hidden} #lobbyPage{max-width:600px;margin:auto;padding:12px} #racePage{position:fixed;inset:0;z-index:10;background:#080d1b;padding:10px;display:flex;flex-direction:column} #racePage.hidden{display:none}
+#shopPanel{overflow:hidden}
+#pointsBalance{font-size:22px;font-weight:800;color:#ffd600;margin:6px}
+#lobbyPreview{width:100%;height:260px;display:block;background:linear-gradient(#7896a7,#d7d4c8 55%,#46563c);border-radius:14px}
+#previewStatus{font-size:12px;color:#cbd5e1;margin:5px}
+#dressGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.dressCard{background:#11182b;border:1px solid #39415d;border-radius:12px;padding:10px;text-align:left}
+.dressSwatch{height:38px;border-radius:8px;margin-bottom:7px;border:2px solid rgba(255,255,255,.18)}
+.dressCard b{display:block}
+.dressCard small{color:#cbd5e1}
+.dressCard button{width:100%;margin:7px 0 0}
+ #racePage h2{margin:5px;color:#50f6c5} #racePage #game{height:auto;min-height:0;max-height:none;flex:1;width:100%;} #racePage .raceTop{display:flex;align-items:center;justify-content:space-between;gap:8px} #racePage #controls{bottom:8px} #racePage #controls button{font-size:20px;min-width:62px} #racePage #raceStatus{margin:5px}
 main{max-width:600px;margin:auto;padding:12px}
 h1{color:#50f6c5}
 .panel{background:#1d2540;padding:15px;border-radius:16px;margin:12px 0}
@@ -48,6 +59,17 @@ button:disabled{opacity:.35}
 <ul id="players"></ul>
 <button id="readyBtn" onclick="readyUp()" disabled>READY</button>
 <button id="startBtn" onclick="startRace()" disabled>START RACE</button>
+</div>
+
+<div class="panel" id="shopPanel">
+<h3>👕 DRESS SHOP</h3>
+<div id="pointsBalance">Points: 0</div>
+<div id="lobbyPreviewWrap">
+<canvas id="lobbyPreview"></canvas>
+<p id="previewStatus">Loading realistic human…</p>
+</div>
+<p style="font-size:13px;color:#cbd5e1">Race finish timing se points milenge. Points se dress buy karo aur EQUIP karke wahi dress race me use hoga.</p>
+<div id="dressGrid"></div>
 </div>
 
 <div class="panel">
@@ -123,6 +145,144 @@ let boostTimer=0;
 let boostTotal=0;
 let boostFlashTimer=0;
 
+const DRESS_CATALOG=[
+  {id:"starter",name:"Starter Blue",price:0,color:"#2563eb",accent:"#f8fafc"},
+  {id:"crimson",name:"Crimson Racer",price:250,color:"#dc2626",accent:"#111827"},
+  {id:"emerald",name:"Emerald Pro",price:500,color:"#16a34a",accent:"#f8fafc"},
+  {id:"royal",name:"Royal Champion",price:900,color:"#7c3aed",accent:"#facc15"},
+  {id:"gold",name:"Gold Elite",price:1400,color:"#d97706",accent:"#fff7ed"}
+];
+let playerProfile=loadPlayerProfile();
+let lobbyPreviewScene=null,lobbyPreviewCamera=null,lobbyPreviewRenderer=null,lobbyPreviewModel=null,lobbyPreviewMixer=null,lobbyPreviewReady=false;
+
+function loadPlayerProfile(){
+  try{
+    const raw=JSON.parse(localStorage.getItem("4gaprush_profile")||"null");
+    if(raw&&typeof raw==="object"){
+      raw.points=Math.max(0,Number(raw.points)||0);
+      raw.owned=Array.isArray(raw.owned)?raw.owned:["starter"];
+      if(!raw.owned.includes("starter"))raw.owned.unshift("starter");
+      raw.equipped=raw.equipped||"starter";
+      return raw;
+    }
+  }catch{}
+  return {points:0,owned:["starter"],equipped:"starter",lastRewardRace:""};
+}
+
+function savePlayerProfile(){
+  try{localStorage.setItem("4gaprush_profile",JSON.stringify(playerProfile));}catch{}
+  updateShopUI();
+  applyDressToModel(lobbyPreviewModel,playerProfile.equipped);
+}
+
+function currentDress(){
+  return DRESS_CATALOG.find(d=>d.id===playerProfile.equipped)||DRESS_CATALOG[0];
+}
+
+function applyDressToModel(root,dressId){
+  if(!root)return;
+  const dress=DRESS_CATALOG.find(d=>d.id===dressId)||DRESS_CATALOG[0];
+  root.traverse(o=>{
+    if(!o.isMesh)return;
+    const mats=Array.isArray(o.material)?o.material:[o.material];
+    mats.forEach(mat=>{
+      if(!mat)return;
+      const name=((mat.name||"")+" "+(o.name||"")).toLowerCase();
+      if(!o.userData.originalMaterialColor && mat.color) o.userData.originalMaterialColor=mat.color.clone();
+      if(/skin|face|eye|teeth|hair|lash|brow|nail/i.test(name))return;
+      if(!mat.userData)mat.userData={};
+      if(mat.color)mat.color.set(dress.color);
+      if("roughness" in mat)mat.roughness=.72;
+      if("metalness" in mat)mat.metalness=.04;
+      mat.needsUpdate=true;
+    });
+  });
+}
+
+function updateShopUI(){
+  const balance=document.getElementById("pointsBalance");
+  if(balance)balance.textContent="💰 Points: "+playerProfile.points;
+  const grid=document.getElementById("dressGrid");
+  if(!grid)return;
+  grid.innerHTML="";
+  DRESS_CATALOG.forEach(dress=>{
+    const owned=playerProfile.owned.includes(dress.id);
+    const equipped=playerProfile.equipped===dress.id;
+    const card=document.createElement("div");card.className="dressCard";
+    card.innerHTML="<div class='dressSwatch' style='background:"+dress.color+"'></div><b>"+dress.name+"</b><small>"+(dress.price?dress.price+" points":"FREE")+"</small>";
+    const btn=document.createElement("button");
+    btn.textContent=equipped?"EQUIPPED":owned?"EQUIP":"BUY • "+dress.price;
+    btn.disabled=equipped;
+    btn.onclick=()=>{
+      if(owned){playerProfile.equipped=dress.id;savePlayerProfile();return;}
+      if(playerProfile.points<dress.price){alert("Not enough points for "+dress.name);return;}
+      playerProfile.points-=dress.price;
+      playerProfile.owned.push(dress.id);
+      playerProfile.equipped=dress.id;
+      savePlayerProfile();
+    };
+    card.appendChild(btn);grid.appendChild(card);
+  });
+}
+
+async function initLobbyPreview(){
+  const canvas=document.getElementById("lobbyPreview");
+  if(!canvas||lobbyPreviewReady)return;
+  try{
+    lobbyPreviewScene=new THREE.Scene();
+    lobbyPreviewScene.background=new THREE.Color(0x6f8792);
+    lobbyPreviewCamera=new THREE.PerspectiveCamera(32,canvas.clientWidth/canvas.clientHeight,.1,100);
+    lobbyPreviewCamera.position.set(0,1.15,4.7);
+    lobbyPreviewCamera.lookAt(0,1.15,0);
+    lobbyPreviewRenderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
+    lobbyPreviewRenderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+    lobbyPreviewRenderer.setSize(canvas.clientWidth,canvas.clientHeight,false);
+    lobbyPreviewRenderer.outputColorSpace=THREE.SRGBColorSpace;
+    lobbyPreviewRenderer.toneMapping=THREE.ACESFilmicToneMapping;
+    lobbyPreviewRenderer.toneMappingExposure=1.1;
+    lobbyPreviewScene.add(new THREE.HemisphereLight(0xeaf6ff,0x4a463f,1.8));
+    const key=new THREE.DirectionalLight(0xffffff,2.2);key.position.set(-3,5,4);lobbyPreviewScene.add(key);
+    const floor=new THREE.Mesh(new THREE.CircleGeometry(1.7,48),new THREE.MeshStandardMaterial({color:0x596a52,roughness:1}));
+    floor.rotation.x=-Math.PI/2;floor.position.y=0;lobbyPreviewScene.add(floor);
+    const {GLTFLoader}=await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js");
+    const loader=new GLTFLoader();
+    const gltf=await loader.loadAsync("/assets/human.glb");
+    lobbyPreviewModel=gltf.scene;
+    const box=new THREE.Box3().setFromObject(lobbyPreviewModel);
+    const size=new THREE.Vector3();box.getSize(size);
+    if(size.y>0.01)lobbyPreviewModel.scale.setScalar(2.55/size.y);
+    const fitted=new THREE.Box3().setFromObject(lobbyPreviewModel);
+    lobbyPreviewModel.position.set(0,-fitted.min.y,0);
+    lobbyPreviewModel.rotation.y=Math.PI;
+    lobbyPreviewModel.traverse(o=>{
+      if(!o.isMesh)return;
+      o.castShadow=true;o.receiveShadow=true;
+      const mats=Array.isArray(o.material)?o.material:[o.material];
+      mats.forEach(mat=>{if(mat&&mat.color)mat.color=mat.color.clone();});
+    });
+    lobbyPreviewScene.add(lobbyPreviewModel);
+    lobbyPreviewMixer=gltf.animations?.length?new THREE.AnimationMixer(lobbyPreviewModel):null;
+    if(lobbyPreviewMixer)lobbyPreviewMixer.clipAction(gltf.animations.find(a=>/walk|run/i.test(a.name))||gltf.animations[0]).play();
+    applyDressToModel(lobbyPreviewModel,playerProfile.equipped);
+    lobbyPreviewReady=true;
+    const ps=document.getElementById("previewStatus");if(ps)ps.textContent="Your current character + dress";
+    const clock=new THREE.Clock();
+    const loop=()=>{requestAnimationFrame(loop);const dt=clock.getDelta();if(lobbyPreviewMixer)lobbyPreviewMixer.update(dt);if(lobbyPreviewModel)lobbyPreviewModel.rotation.y=Math.PI+Math.sin(performance.now()*.0007)*.18;lobbyPreviewRenderer.render(lobbyPreviewScene,lobbyPreviewCamera);};
+    loop();
+  }catch(err){
+    const ps=document.getElementById("previewStatus");if(ps)ps.textContent="Realistic human model loading failed — race will show the same status.";
+    console.warn("Lobby human preview failed",err);
+  }
+}
+
+function syncLobbyProfile(){
+  const name=document.getElementById("name");
+  const character=document.getElementById("character");
+  if(character&&playerProfile.character)character.value=playerProfile.character;
+  if(character)character.addEventListener("change",()=>{playerProfile.character=character.value;savePlayerProfile();});
+  updateShopUI();
+  initLobbyPreview();
+}
 
 function makeOpponent(id,name,index){
   const g=new THREE.Group();
@@ -189,7 +349,7 @@ function loadRealisticOpponent(g){
     }).catch(()=>{opponentModelLoading=false;});
 }
 
-function replaceOpponentWithRealistic(g){
+function replaceOpponentWithRealistic(g,dressId){
   if(!g||g.userData.realistic||!opponentModelTemplate)return;
   const oldChildren=[...g.children];
   oldChildren.forEach(ch=>{if(ch.type!=="Sprite")g.remove(ch);});
@@ -198,6 +358,7 @@ function replaceOpponentWithRealistic(g){
   // Normalize it by its actual bounding-box height so it can never fill the
   // camera like a giant black wall on mobile screens.
   const human=(window.cloneHumanModel ? window.cloneHumanModel(opponentModelTemplate) : opponentModelTemplate.clone(true));
+  human.traverse(o=>{if(o.isMesh){o.material=Array.isArray(o.material)?o.material.map(m=>m?.clone?.()||m):(o.material?.clone?.()||o.material);}});
   human.scale.setScalar(1);
   const rawBox=new THREE.Box3().setFromObject(human);
   const rawSize=new THREE.Vector3();
@@ -227,6 +388,8 @@ function replaceOpponentWithRealistic(g){
       mat.needsUpdate=true;
     });
   });
+  applyDressToModel(human,dressId||g.userData.dress||"starter");
+  g.userData.dress=dressId||g.userData.dress||"starter";
   g.add(human);
   g.userData.realistic=true;
   g.userData.human=human;
@@ -255,7 +418,10 @@ function syncOpponents(players){
     const lane=Number.isFinite(Number(p.lane))?Number(p.lane):(index%4);
     g.userData.lane=lane;
     g.userData.baseX=laneX[lane];
-    opponentStates.set(p.id,{dist:Number(p.dist)||0,alive:p.alive!==false,finished:!!p.finished,lane});
+    opponentStates.set(p.id,{dist:Number(p.dist)||0,alive:p.alive!==false,finished:!!p.finished,lane,dress:p.dress||"starter"});
+    if(g.userData.realistic && g.userData.dress!==(p.dress||"starter")){
+      const h=g.userData.human;applyDressToModel(h,p.dress||"starter");g.userData.dress=p.dress||"starter";
+    }
     opponentLastSeen.set(p.id,performance.now());
     // Keep every connected racer represented through the finish.\n    // A finished racer stays visible at the finish line instead of vanishing.\n    g.visible=true;
   });
@@ -454,12 +620,19 @@ function connect(){
       racing=false;
       document.getElementById("controls").classList.add("hidden");
       const results=m.results||[];
+      const mine=results.find(p=>p.id===myId);
+      if(mine && mine.points!=null && playerProfile.lastRewardRace!==String(raceStartedAt)){
+        playerProfile.lastRewardRace=String(raceStartedAt);
+        playerProfile.points+=Math.max(0,Number(mine.points)||0);
+        savePlayerProfile();
+      }
       const fmt=ms=>{if(ms==null)return "DNF";const min=Math.floor(ms/60000);const sec=((ms%60000)/1000).toFixed(2);return String(min).padStart(2,"0")+":"+sec.padStart(5,"0");};
       const box=document.getElementById("raceStatus");
       box.textContent="";
       const title=document.createElement("h2");title.textContent=m.winner?"🏆 WINNER: "+m.winner:"RACE OVER • No finisher";box.appendChild(title);
       const table=document.createElement("div");table.style.cssText="background:#1d2540;padding:12px;border-radius:12px;margin:8px auto;max-width:420px";
-      results.forEach((p,i)=>{const row=document.createElement("p");row.textContent=(i+1)+". "+p.name+" — "+(p.finished?fmt(p.time):"DNF");row.style.color=i===0&&p.finished?"#50f6c5":"white";table.appendChild(row)});
+      results.forEach((p,i)=>{const row=document.createElement("p");row.textContent=(i+1)+". "+p.name+" — "+(p.finished?fmt(p.time):"DNF")+" • +"+(p.points||0)+" pts";row.style.color=i===0&&p.finished?"#50f6c5":"white";table.appendChild(row)});
+      const earned=document.createElement("p");earned.textContent="💰 Your points: "+(mine?.points||0)+" earned • Balance: "+playerProfile.points;earned.style.color="#ffd600";earned.style.fontWeight="bold";table.appendChild(earned);
       box.appendChild(table);
       const back=document.createElement("button");back.textContent="BACK TO LOBBY";back.onclick=returnLobby;box.appendChild(back);
     }
@@ -503,10 +676,10 @@ function playerName(){
   return document.getElementById("name").value.trim()||"Player";
 }
 function createRoom(){
-  send({type:"create",name:playerName()});
+  send({type:"create",name:playerName(),dress:playerProfile.equipped});
 }
 function joinRoom(){
-  send({type:"join",room:document.getElementById("room").value.trim(),name:playerName()});
+  send({type:"join",room:document.getElementById("room").value.trim(),name:playerName(),dress:playerProfile.equipped});
 }
 function readyUp(){
   isReady=!isReady;
@@ -873,6 +1046,11 @@ function init3D(){
       const loader=new GLTFLoader();
       const modelUrl="/assets/human.glb";
       let settled=false;
+      const raceModelStatus=document.createElement("div");
+      raceModelStatus.id="humanModelStatus";
+      raceModelStatus.textContent="👤 HUMAN: loading…";
+      raceModelStatus.style.cssText="position:absolute;left:8px;bottom:8px;z-index:6;background:rgba(0,0,0,.65);padding:5px 8px;border-radius:8px;font-size:11px;color:#ffd600;pointer-events:none";
+      document.getElementById("game")?.appendChild(raceModelStatus);
       const fallbackTimer=setTimeout(()=>{if(!settled) console.warn("4 GAP RUSH: human model is still loading; fallback remains visible until it finishes");},30000);
 
       loader.load(modelUrl,gltf=>{
@@ -880,6 +1058,7 @@ function init3D(){
         if(!car||!scene)return;
 
         const human=gltf.scene;
+        human.traverse(o=>{if(o.isMesh){o.material=Array.isArray(o.material)?o.material.map(m=>m?.clone?.()||m):(o.material?.clone?.()||o.material);}});
         let meshCount=0;
         human.traverse(o=>{if(o.isMesh)meshCount++;});
         const box=new THREE.Box3().setFromObject(human);
@@ -908,17 +1087,23 @@ function init3D(){
         });
 
         [...car.children].forEach(ch=>car.remove(ch));
+        applyDressToModel(human,playerProfile.equipped);
         car.add(human);
         window.runnerLimbs=[];
         car.userData.realistic=true;
         car.userData.human=human;
         car.userData.runnerPhase=0;
+        if(raceModelStatus)raceModelStatus.textContent="👤 HUMAN: loaded";
+        raceModelStatus.style.color="#50f6c5";
+        setTimeout(()=>raceModelStatus.remove(),2200);
         console.log("4 GAP RUSH: textured human loaded from same-origin /assets/human.glb");
       },undefined,err=>{
         settled=true; clearTimeout(fallbackTimer);
+        if(raceModelStatus){raceModelStatus.textContent="👤 HUMAN: ERROR — fallback";raceModelStatus.style.color="#ff6b6b";}
         console.warn("4 GAP RUSH: human GLB failed; visible fallback retained",err);
       });
     }catch(err){
+      const s=document.getElementById("humanModelStatus");if(s){s.textContent="👤 HUMAN: loader error — fallback";s.style.color="#ff6b6b";}
       console.warn("4 GAP RUSH: human loader failed; visible fallback retained",err);
     }
   })();
@@ -1157,6 +1342,7 @@ window.addEventListener("resize",()=>{
 });
 
 connect();
+syncLobbyProfile();
 window.addEventListener("error",e=>{
   const msg=String(e?.message||"");
   if(msg) status("Game recovered from an error. Reconnecting…");
