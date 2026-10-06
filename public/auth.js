@@ -100,6 +100,7 @@ async function afterSignIn(user) {
     };
     cloudReady = true;
     applyProfile(merged);
+    await saveCloudProfile(merged);
     return;
   }
   cloudReady = true;
