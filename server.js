@@ -12,6 +12,41 @@ const rooms = new Map();
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/race", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
+let humanGlbCache = null;
+let humanGlbLoading = null;
+
+// Serve the human model from the same Render origin. This avoids mobile
+// browser/CDN/CORS failures when GLTFLoader requests a large external GLB.
+app.get("/assets/human.glb", async (req, res) => {
+  const source = "https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/human.glb";
+  try {
+    if (humanGlbCache) {
+      res.set("Content-Type", "model/gltf-binary");
+      res.set("Cache-Control", "public, max-age=86400");
+      return res.send(humanGlbCache);
+    }
+    if (!humanGlbLoading) {
+      humanGlbLoading = fetch(source).then(async r => {
+        if (!r.ok) throw new Error("human GLB upstream HTTP " + r.status);
+        const ab = await r.arrayBuffer();
+        const buf = Buffer.from(ab);
+        if (buf.length < 1000 || buf.toString("ascii",0,4) !== "glTF") {
+          throw new Error("human GLB upstream response is not a valid GLB");
+        }
+        humanGlbCache = buf;
+        return buf;
+      }).finally(() => { humanGlbLoading = null; });
+    }
+    const buf = await humanGlbLoading;
+    res.set("Content-Type", "model/gltf-binary");
+    res.set("Cache-Control", "public, max-age=86400");
+    res.send(buf);
+  } catch (err) {
+    console.error("Human GLB proxy failed:", err.message);
+    res.status(502).json({ ok:false, error:"Human model unavailable" });
+  }
+});
+
 const send = (ws, msg) => {
   if (!ws || ws.readyState !== 1) return;
   try {
