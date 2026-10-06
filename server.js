@@ -18,8 +18,8 @@ let humanGlbSource = null;
 let humanGlbLastError = null;
 
 const HUMAN_GLB_SOURCES = [
-  "https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/human.glb",
-  "https://raw.githubusercontent.com/Richardengle/3dfiles/main/human.glb"
+  "https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/suited.glb",
+  "https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/human.glb"
 ];
 
 // Always serve the model from this game's own origin. The browser therefore
