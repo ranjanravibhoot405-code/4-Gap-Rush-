@@ -76,8 +76,8 @@ button:disabled{opacity:.35}
 <p>Jump is available from 18 m before each gap — choose your power in the safe zone.</p>
 </section>
 
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"
+        onerror="this.onerror=null;this.src='https://unpkg.com/three@0.160.0/build/three.min.js';"></script>
 <script>
 let ws,myId=null,isHost=false,isReady=false;
 let racing=false,distance=0,recovery=2,alive=true;
@@ -297,13 +297,37 @@ function updateOpponents(){
   });
 }
 
-function connect(){
-  const protocol=location.protocol==="https:"?"wss:":"ws:";
-  ws=new WebSocket(protocol+"//"+location.host);
+let reconnectTimer=null;
+let reconnectAttempt=0;
+let intentionallyClosed=false;
 
-  ws.onopen=()=>status("Connected to game server");
-  ws.onclose=()=>status("Disconnected. Refresh page.");
-  ws.onerror=()=>status("Connection error");
+function connect(){
+  intentionallyClosed=false;
+  if(ws && (ws.readyState===WebSocket.OPEN || ws.readyState===WebSocket.CONNECTING)) return;
+
+  const protocol=location.protocol==="https:"?"wss:":"ws:";
+  try{
+    ws=new WebSocket(protocol+"//"+location.host);
+  }catch(err){
+    scheduleReconnect();
+    return;
+  }
+
+  ws.onopen=()=>{
+    reconnectAttempt=0;
+    status("Connected to game server");
+  };
+
+  ws.onclose=()=>{
+    if(intentionallyClosed) return;
+    status("Reconnecting to game server…");
+    scheduleReconnect();
+  };
+
+  ws.onerror=()=>{
+    // onclose will perform the actual reconnect; do not throw an uncaught error.
+    status("Connection interrupted — reconnecting…");
+  };
 
   ws.onmessage=e=>{
     let m;
@@ -350,92 +374,67 @@ function connect(){
 
     if(m.type==="race_start"){
       racing=true;
-      // Use the server's common start timestamp so both phones show the
-      // same race clock instead of starting their timer at different
-      // WebSocket message arrival times.
       const rawStart=Number(m.startedAt);
       raceStartedAt=rawStart>0 ? (rawStart<100000000000 ? rawStart*1000 : rawStart) : Date.now();
       showRacePage();
 
-      // The server now sends the complete authoritative checkpoint snapshot.
       gaps=Array.isArray(m.gaps)&&m.gaps.length
         ? m.gaps.map(g=>typeof g==="number"?g:{at:Number(g.at),width:Number(g.width)})
         : [400,800,1200,1600];
 
-      if(Array.isArray(m.players)&&m.players.length){
-        latestPlayers=m.players;
-      }
+      if(Array.isArray(m.players)&&m.players.length) latestPlayers=m.players;
 
-      distance=0;
-      visualDistance=0;
-      lastFrame=0;
-      lastStepShown=0;
-      recovery=2;
-      alive=true;
-      usedChoices=[];
-      lastProgressSent=0;
+      distance=0; visualDistance=0; lastDistance=0; lastProgressSent=0;
+      lastStepShown=0; recovery=2; alive=true; usedChoices=[];
       playerLane=Math.max(0,Math.min(laneX.length-1,Number(latestPlayers.find(p=>p.id===myId)?.lane ?? 1)));
       targetLane=playerLane;
-      cameraYaw=0;
-      cameraPitch=0.12;
-      cameraDragging=false;
+
       init3D();
       syncOpponents(latestPlayers);
-      document.getElementById("controls").classList.add("hidden");
-      document.getElementById("jumpGuide").classList.add("hidden");
       document.getElementById("raceStatus").textContent="🏁 Race started!";
-      
     }
 
     if(m.type==="race_sync"){
-      // Recovery path for a phone that missed the initial race_start packet.
-      // If already racing, only update the authoritative multiplayer state.
       if(Array.isArray(m.gaps)&&m.gaps.length){
         gaps=m.gaps.map(g=>typeof g==="number"?g:{at:Number(g.at),width:Number(g.width)});
       }
-      if(Array.isArray(m.players)&&m.players.length){
-        latestPlayers=m.players;
-      }
+      if(Array.isArray(m.players)&&m.players.length) latestPlayers=m.players;
 
       if(!racing){
         racing=true;
         const rawStart=Number(m.startedAt);
         raceStartedAt=rawStart>0 ? (rawStart<100000000000 ? rawStart*1000 : rawStart) : Date.now();
-        distance=0; visualDistance=0; lastFrame=0; lastStepShown=0;
-        recovery=2; alive=true; usedChoices=[]; lastProgressSent=0;
-        playerLane=Math.max(0,Math.min(laneX.length-1,Number(latestPlayers.find(p=>p.id===myId)?.lane ?? 1)));
-        targetLane=playerLane;
         showRacePage();
         init3D();
-        syncOpponents(latestPlayers);
-        document.getElementById("raceStatus").textContent="🏁 Race synchronized!";
-      }else if(scene){
-        syncOpponents(latestPlayers);
       }
+      if(scene) syncOpponents(latestPlayers);
+    }
+
+    if(m.type==="race_positions"){
+      if(Array.isArray(m.gaps)&&m.gaps.length){
+        gaps=m.gaps.map(g=>typeof g==="number"?g:{at:Number(g.at),width:Number(g.width)});
+      }
+      if(Array.isArray(m.players)&&m.players.length) latestPlayers=m.players;
+      if(scene && racing) syncOpponents(latestPlayers);
     }
 
     if(m.type==="jump_result"){
-      recovery=Math.max(0,Number(m.recovery)||0);
-      if(typeof m.alive==="boolean") alive=m.alive;
-      if(Array.isArray(m.usedChoices)) usedChoices=m.usedChoices;
+      if(m.recovery!=null) recovery=m.recovery;
+      if(m.dist!=null) distance=visualDistance=Number(m.dist)||distance;
+      alive=m.alive!==false;
       if(m.result==="fall"){
-        const hitGap=gaps.find(g=>(typeof g==="number"?g:g.at)>=distance-35);
-        const pitAt=hitGap?(typeof hitGap==="number"?hitGap:hitGap.at):distance;
-        distance=visualDistance=pitAt;
-        fallTimer=1.15;jumpTimer=0;
-        recoveryResumeAt=alive?m.dist:null;
         fallSequence={phase:"fall",remaining:1.15};
-        let panel=document.getElementById("recoveryAction");
-        if(!panel){panel=document.createElement("div");panel.id="recoveryAction";panel.style.cssText="position:absolute;z-index:8;left:50%;top:48%;transform:translate(-50%,-50%);background:rgba(4,10,25,.96);border:3px solid #50f6c5;border-radius:18px;padding:20px 28px;font-size:25px;line-height:1.5;min-width:240px;box-shadow:0 0 30px #000;text-align:center";document.getElementById("game").appendChild(panel);}
-        panel.innerHTML="🧍‍♂️⬇️<br><b>FELL INTO THE GAP!</b>";panel.classList.remove("hidden");
-        document.getElementById("raceStatus").textContent="💥 Fell into the pit!";
-        document.getElementById("controls").classList.add("hidden");
-        document.getElementById("jumpGuide").classList.add("hidden");
-      } else {
-        distance=m.dist;visualDistance=m.dist;lastFrame=0;fallTimer=0;
-        if((m.result==="nitro"||m.result==="skate")&&jumpTimer<=0){jumpTimer=0.8; boostTimer=3.5; boostTotal=3.5; boostFlashTimer=1.2; document.getElementById("raceStatus").textContent="🚀 SPEED BOOST! OVERTAKE NOW!";}
+        document.getElementById("raceStatus").textContent="💥 Fell into the gap!";
+      }else{
+        if((m.result==="nitro"||m.result==="skate")&&jumpTimer<=0){
+          jumpTimer=.8; boostTimer=3.5; boostTotal=3.5; boostFlashTimer=1.2;
+          document.getElementById("raceStatus").textContent="🚀 SPEED BOOST! OVERTAKE NOW!";
+        }
         renderJumpButtons();
-        document.getElementById("raceStatus").textContent=m.result==="nitro"?"🚀 PERFECT! SPEED BOOST!":m.result==="skate"?"🚀 SUCCESSFUL JUMP — SPEED BOOST!":m.result==="finish"?"🏆 FINISHED!":"";
+        document.getElementById("raceStatus").textContent=
+          m.result==="nitro"?"🚀 PERFECT! SPEED BOOST!":
+          m.result==="skate"?"🚀 SUCCESSFUL JUMP — SPEED BOOST!":
+          m.result==="finish"?"🏆 FINISHED!":"";
       }
       updateHUD();
     }
@@ -456,44 +455,41 @@ function connect(){
       results.forEach((p,i)=>{const row=document.createElement("p");row.textContent=(i+1)+". "+p.name+" — "+(p.finished?fmt(p.time):"DNF");row.style.color=i===0&&p.finished?"#50f6c5":"white";table.appendChild(row)});
       box.appendChild(table);
       const back=document.createElement("button");back.textContent="BACK TO LOBBY";back.onclick=returnLobby;box.appendChild(back);
-      // Also show a fixed, high-visibility result overlay for every connected player.
-      let resultOverlay=document.getElementById("raceResultOverlay");
-      if(!resultOverlay){resultOverlay=document.createElement("div");resultOverlay.id="raceResultOverlay";resultOverlay.style.cssText="position:fixed;inset:0;z-index:99999;background:rgba(3,7,18,.96);color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;overflow:auto";document.body.appendChild(resultOverlay);}
-      resultOverlay.innerHTML="";
-      const resultHeading=document.createElement("h1");resultHeading.style.color="#50f6c5";resultHeading.textContent=m.winner?"🏆 WINNER: "+m.winner:"RACE OVER • No finisher";resultOverlay.appendChild(resultHeading);
-      const resultSub=document.createElement("p");resultSub.textContent="FINAL RACE RESULTS";resultOverlay.appendChild(resultSub);
-      results.forEach((p,i)=>{const line=document.createElement("p");line.style.cssText="font-size:20px;margin:8px";line.textContent=(i+1)+". "+p.name+" — "+(p.finished?fmt(p.time):"DNF");resultOverlay.appendChild(line);});
-      const closeResult=document.createElement("button");closeResult.textContent="BACK TO LOBBY";closeResult.onclick=()=>{resultOverlay.remove();returnLobby();};resultOverlay.appendChild(closeResult);
     }
 
-    if(m.type==="race_positions"){
-      // This is the authoritative multiplayer snapshot. Store it even if the
-      // renderer is still rebuilding, then apply it as soon as the scene exists.
-      if(Array.isArray(m.gaps)&&m.gaps.length){
-        gaps=m.gaps.map(g=>typeof g==="number"?g:{at:Number(g.at),width:Number(g.width)});
-      }
-      if(Array.isArray(m.players)&&m.players.length){
-        latestPlayers=m.players;
-      }
-      if(scene && racing) syncOpponents(latestPlayers);
-    }
-
-    if(m.type==="error")status(m.message);
+    if(m.type==="error") status(m.message||"Server error");
   };
+}
+
+function scheduleReconnect(){
+  if(reconnectTimer||intentionallyClosed) return;
+  reconnectAttempt=Math.min(reconnectAttempt+1,6);
+  const delay=Math.min(30000,1000*Math.pow(2,reconnectAttempt-1));
+  reconnectTimer=setTimeout(()=>{
+    reconnectTimer=null;
+    connect();
+  },delay);
 }
 
 function showRacePage(){document.getElementById("lobbyPage").classList.add("hidden");document.getElementById("racePage").classList.remove("hidden");document.body.classList.add("racing");if(location.pathname!=="/race")history.pushState({page:"race"},"","/race");setTimeout(()=>{if(renderer){renderer.setSize(document.getElementById("game").clientWidth,document.getElementById("game").clientHeight);camera.aspect=document.getElementById("game").clientWidth/document.getElementById("game").clientHeight;camera.updateProjectionMatrix();}},80);}
 function returnLobby(){document.getElementById("racePage").classList.add("hidden");document.getElementById("lobbyPage").classList.remove("hidden");document.body.classList.remove("racing");if(location.pathname==="/race")history.pushState({page:"lobby"},"","/");}
 window.addEventListener("popstate",()=>{if(location.pathname==="/race")showRacePage();else returnLobby();});
-if(location.pathname==="/race"){document.getElementById("lobbyPage").classList.add("hidden");document.getElementById("racePage").classList.remove("hidden");document.body.classList.add("racing");}
+if(location.pathname==="/race" && !racing){
+  history.replaceState({page:"lobby"},"","/");
+  document.getElementById("lobbyPage").classList.remove("hidden");
+  document.getElementById("racePage").classList.add("hidden");
+  document.body.classList.remove("racing");
+}
 function status(t){
   document.getElementById("status").textContent=t;
 }
 
 function send(data){
-  if(ws&&ws.readyState===WebSocket.OPEN)
-    ws.send(JSON.stringify(data));
-  else status("Not connected");
+  if(ws&&ws.readyState===WebSocket.OPEN){
+    try{ws.send(JSON.stringify(data));}catch{}
+  }else{
+    status("Reconnecting…");
+  }
 }
 
 function playerName(){
@@ -863,55 +859,10 @@ function init3D(){
   targetLane=Math.max(0,Math.min(laneX.length-1,Number(targetLane)||playerLane));
   car.position.set(laneX[targetLane],0,3); scene.add(car);
   window.runnerLimbs=limbs;
-  // Load a rigged, animated 3D human (Three.js Soldier sample). Keep the existing
-  // runner as a visible fallback until the model has loaded.
-  import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js")
-    .then(({GLTFLoader})=>{
-      const loader=new GLTFLoader();
-      loader.load("https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb",gltf=>{
-        if(!scene||!racing)return;
-        const oldRunner=car;
-        const human=gltf.scene;
-
-        // Normalize the downloaded GLB to our runner's real-world size.
-        // Without this, the external sample model can be many times taller
-        // than the road and completely block the third-person camera.
-        human.scale.setScalar(1);
-        const rawBox=new THREE.Box3().setFromObject(human);
-        const rawSize=new THREE.Vector3();
-        rawBox.getSize(rawSize);
-        const targetHeight=0.70;
-        if(rawSize.y>0.01) human.scale.setScalar(targetHeight/rawSize.y);
-        const fittedBox=new THREE.Box3().setFromObject(human);
-        human.position.set(laneX[targetLane],-fittedBox.min.y,3);
-        human.rotation.y=0; // Model's rear should face the camera while it runs forward.
-        human.traverse(o=>{
-          if(!o.isMesh)return;
-          o.castShadow=true;
-          o.receiveShadow=true;
-          const mats=Array.isArray(o.material)?o.material:[o.material];
-          mats.forEach(mat=>{
-            if(!mat)return;
-            mat.roughness=Math.min(Number.isFinite(mat.roughness)?mat.roughness:.7,.82);
-            if("metalness" in mat)mat.metalness=Math.min(Number.isFinite(mat.metalness)?mat.metalness:0,.15);
-            if(mat.color && mat.color.getHex()===0x000000)mat.color.set(0x243447);
-            if("emissive" in mat && mat.emissive && mat.emissive.getHex()===0x000000){
-              mat.emissive.set(0x08111c);
-              mat.emissiveIntensity=.12;
-            }
-            mat.needsUpdate=true;
-          });
-        });
-        scene.remove(oldRunner);
-        car=human;
-        scene.add(car);
-        if(gltf.animations&&gltf.animations.length){
-          humanMixer=new THREE.AnimationMixer(human);
-          const runClip=gltf.animations.find(a=>/run/i.test(a.name))||gltf.animations[0];
-          humanMixer.clipAction(runClip).play();
-        }
-      },undefined,err=>console.warn("Human model failed to load; using fallback runner.",err));
-    }).catch(err=>console.warn("3D human loader unavailable; using fallback runner.",err));
+  // Keep the procedural runner as the permanent local avatar.
+  // Do not depend on a remote GLB/model server: the game must still load
+  // normally after days of inactivity or when an external asset is unavailable.
+  humanMixer=null;
 
   // Dry, deep ravines: deliberately NO water mesh or water material.
   // Each gap is an open canyon cut through the road with exposed earth walls,
@@ -1136,6 +1087,19 @@ window.addEventListener("resize",()=>{
 });
 
 connect();
+window.addEventListener("error",e=>{
+  const msg=String(e?.message||"");
+  if(msg) status("Game recovered from an error. Reconnecting…");
+});
+window.addEventListener("unhandledrejection",()=>{
+  status("Temporary loading error — game is recovering…");
+});
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible" && (!ws || ws.readyState===WebSocket.CLOSED)){
+    connect();
+  }
+});
+window.addEventListener("beforeunload",()=>{intentionallyClosed=true;});
 </script>
 </body>
 </html>
