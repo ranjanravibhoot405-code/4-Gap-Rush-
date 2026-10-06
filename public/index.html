@@ -867,7 +867,7 @@ function init3D(){
     try{
       const {GLTFLoader}=await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js");
       const loader=new GLTFLoader();
-      const modelUrl="https://raw.githubusercontent.com/annasba07/threedpt/main/public/models/Human.glb";
+      const modelUrl="https://threejs.org/examples/models/gltf/Soldier.glb";
       loader.load(modelUrl,gltf=>{
         if(!car||!scene)return;
         const human=gltf.scene;
@@ -893,7 +893,7 @@ function init3D(){
         window.runnerLimbs=[];
         humanMixer=new THREE.AnimationMixer(human);
         const clips=gltf.animations||[];
-        const runClip=clips.find(a=>/run|jog|walk/i.test(a.name))||clips[0];
+        const runClip=clips.find(a=>/run|jog/i.test(a.name))||clips.find(a=>/walk/i.test(a.name))||clips[0];
         if(runClip){
           const action=humanMixer.clipAction(runClip);
           action.reset().play();
