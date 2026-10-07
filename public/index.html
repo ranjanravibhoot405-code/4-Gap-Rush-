@@ -116,7 +116,7 @@ button:disabled{opacity:.35}
 <button onclick="jump(9)">9</button>
 </div>
 </div>
-<p>Jump is available from 18 m before each gap — choose your power in the safe zone.</p>
+<p>Jump is available about 2 m before each gap — choose your power in the safe zone.</p>
 </section>
 
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
@@ -866,7 +866,7 @@ function jump(choice){
   if(!racing||!alive||usedChoices.includes(choice))return;
   const next=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
   const at=next?(typeof next==="number"?next:next.at):null;
-  if(at===null||distance<at-18||distance>=at+2){
+  if(at===null||distance<at-2||distance>=at+2){
     document.getElementById("raceStatus").textContent="⏳ Wait for the "+(at||"finish")+" m checkpoint!";
     return;
   }
@@ -1302,16 +1302,18 @@ function init3D(){
   gaps.forEach((g,i)=>{
     const at=typeof g==="number"?g:g.at;
     const ravine=new THREE.Group();
+    // Each gap is centered exactly on its authoritative meter checkpoint.
+    // Keep the opening long enough to be unmistakable from the chase camera.
     // Dark floor, far below the road: this is a dry chasm, not a blue surface.
-    const floor=new THREE.Mesh(new THREE.BoxGeometry(19,.7,2.8),cliffDarkMat);
+    const floor=new THREE.Mesh(new THREE.BoxGeometry(12.2,.7,3.8),cliffDarkMat);
     floor.position.set(0,-1.2,0);floor.receiveShadow=true;ravine.add(floor);
     // Rough cut-earth walls on both sides and both ends of the opening.
     for(const side of [-1,1]){
       // Side walls stay outside the 12m road opening so they cannot
       // become a full-screen wall in the runner's forward view.
-      const wall=new THREE.Mesh(new THREE.BoxGeometry(.8,4.8,2.8),cliffMat);
+      const wall=new THREE.Mesh(new THREE.BoxGeometry(.55,4.8,3.8),cliffMat);
       wall.position.set(side*6.55,-2.35,0);wall.rotation.z=side*.06;wall.receiveShadow=true;ravine.add(wall);
-      for(let n=0;n<16;n++){
+      for(let n=0;n<12;n++){
         const boulder=new THREE.Mesh(new THREE.DodecahedronGeometry(.18+Math.random()*.45,0),rubbleMats[Math.floor(Math.random()*rubbleMats.length)]);
         boulder.scale.set(1.2,.7,.8);
         // Decorative rocks must stay outside the 12m racing surface.
@@ -1384,14 +1386,14 @@ function animate(){
       distance=Math.max(distance,visualDistance);
       const nextCheckpoint=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
       const checkpointAt=nextCheckpoint?(typeof nextCheckpoint==="number"?nextCheckpoint:nextCheckpoint.at):null;
-      const checkpointReady=checkpointAt!==null && distance>=checkpointAt-18 && distance<checkpointAt;
+      const checkpointReady=checkpointAt!==null && distance>=checkpointAt-2 && distance<checkpointAt;
       const controls=document.getElementById("controls");
       const guide=document.getElementById("jumpGuide");
       if(controls) controls.classList.toggle("hidden",!checkpointReady);
       const laneUI=document.getElementById("laneControls");
       if(laneUI) laneUI.style.display=checkpointReady?"none":"flex";
       if(guide) guide.classList.toggle("hidden",!checkpointReady);
-      if(checkpointReady){if(!jumpPromptSince)jumpPromptSince=now;if(now-jumpPromptSince>2200){send({type:"skip_gap"});jumpPromptSince=0;}}else jumpPromptSince=0;
+      if(checkpointReady){if(!jumpPromptSince)jumpPromptSince=now;if(now-jumpPromptSince>1800){send({type:"skip_gap"});jumpPromptSince=0;}}else jumpPromptSince=0;
       if(now-lastProgressSent>150){
         send({type:"progress",dist:distance,lane:targetLane});
         lastProgressSent=now;
@@ -1451,7 +1453,7 @@ function animate(){
       const at=typeof gaps[i]==="number"?gaps[i]:gaps[i].at;
       gap.position.z=3-at/10;
       // Keep the gap fixed to the road and reveal it early enough to be seen before the jump window.
-      gap.visible=(at-distance)>-25&&(at-distance)<150;
+      gap.visible=(at-distance)>-35&&(at-distance)<220;
     });
 
     const runT=Date.now()*.009;
