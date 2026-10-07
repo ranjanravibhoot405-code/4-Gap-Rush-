@@ -210,7 +210,9 @@ if (!configReady()) {
         }
       } catch (e) {
         const code = e?.code || "";
-        message(code === "auth/unauthorized-domain"
+        message((code === "auth/invalid-api-key" || code === "auth/api-key-not-valid" || /API key not valid/i.test(e?.message || ""))
+          ? "Firebase API key is invalid or restricted. The game code is loading Firebase correctly; check the Web App API key in Google Cloud/Firebase and allow this Render site."
+          : code === "auth/unauthorized-domain"
           ? "Firebase blocked this domain. Add four-gap-rush-klzw.onrender.com to Authentication → Settings → Authorized domains."
           : code === "auth/operation-not-allowed"
           ? "Google Sign-in is not enabled in Firebase Authentication."
@@ -238,7 +240,9 @@ if (!configReady()) {
         try { recaptcha?.clear(); } catch {}
         recaptcha = null;
         if ($("recaptcha-container")) $("recaptcha-container").innerHTML = "";
-        message(code === "auth/operation-not-allowed"
+        message((code === "auth/invalid-api-key" || code === "auth/api-key-not-valid" || /API key not valid/i.test(e?.message || ""))
+          ? "Firebase API key is invalid or restricted. Check the Web App API key in Google Cloud/Firebase."
+          : code === "auth/operation-not-allowed"
           ? "Phone Sign-in is not enabled in Firebase Authentication."
           : code === "auth/unauthorized-domain"
           ? "This game domain is not authorized in Firebase Authentication."
