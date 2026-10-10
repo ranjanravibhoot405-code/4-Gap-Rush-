@@ -212,6 +212,11 @@ async function loadHumanGLTF(){
   return humanGltfPromise;
 }
 
+async function cloneHumanScene(gltf){
+  const {clone}=await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js");
+  return clone(gltf.scene);
+}
+
 function loadPlayerProfile(){
   try{
     const raw=JSON.parse(localStorage.getItem("4gaprush_profile")||"null");
@@ -419,7 +424,7 @@ async function initLobbyPreview(){
     const floor=new THREE.Mesh(new THREE.CircleGeometry(1.7,48),new THREE.MeshStandardMaterial({color:0x596a52,roughness:1}));
     floor.rotation.x=-Math.PI/2;floor.position.y=0;lobbyPreviewScene.add(floor);
     const gltf=await loadHumanGLTF();
-    lobbyPreviewModel=gltf.scene;
+    lobbyPreviewModel=await cloneHumanScene(gltf);
     const box=new THREE.Box3().setFromObject(lobbyPreviewModel);
     const size=new THREE.Vector3();box.getSize(size);
     if(size.y>0.01)lobbyPreviewModel.scale.setScalar(2.55/size.y);
@@ -1242,7 +1247,7 @@ function init3D(){
       const gltf=await loadHumanGLTF();
       settled=true;clearTimeout(fallbackTimer);
       if(!car||!scene)return;
-      const human=gltf.scene;
+      const human=await cloneHumanScene(gltf);
       human.traverse(o=>{if(o.isMesh)o.material=Array.isArray(o.material)?o.material.map(m=>m?.clone?.()||m):(o.material?.clone?.()||o.material);});
       let meshCount=0;
       human.traverse(o=>{if(o.isMesh)meshCount++;});
