@@ -177,6 +177,41 @@ const DRESS_CATALOG=[
 let playerProfile=loadPlayerProfile();
 let lobbyPreviewScene=null,lobbyPreviewCamera=null,lobbyPreviewRenderer=null,lobbyPreviewModel=null,lobbyPreviewMixer=null,lobbyPreviewReady=false;
 
+let humanGltfPromise=null;
+
+// Try the game's same-origin model proxy first, then the public CDN copies.
+// This prevents a temporary Render outbound-fetch failure from silently leaving
+// the race stuck with the primitive fallback avatar.
+async function loadHumanGLTF(){
+  if(!humanGltfPromise){
+    humanGltfPromise=(async()=>{
+      const {GLTFLoader}=await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js");
+      const loader=new GLTFLoader();
+      const sources=[
+        "/assets/human.glb",
+        "https://cdn.jsdelivr.net/gh/kunalkushwaha/vsim@main/packages/assets/library/suited.glb",
+        "https://cdn.jsdelivr.net/gh/kunalkushwaha/vsim@main/packages/assets/library/human.glb"
+      ];
+      let lastError=null;
+      for(const url of sources){
+        try{
+          const gltf=await loader.loadAsync(url);
+          let meshes=0;
+          gltf.scene.traverse(o=>{if(o.isMesh)meshes++;});
+          if(!meshes)throw new Error("GLB contains no visible meshes: "+url);
+          console.info("4 GAP RUSH: realistic human loaded from",url);
+          return gltf;
+        }catch(err){
+          lastError=err;
+          console.warn("4 GAP RUSH: human source failed; trying next source:",url,err);
+        }
+      }
+      throw lastError||new Error("No human GLB source could be loaded");
+    })().catch(err=>{humanGltfPromise=null;throw err;});
+  }
+  return humanGltfPromise;
+}
+
 function loadPlayerProfile(){
   try{
     const raw=JSON.parse(localStorage.getItem("4gaprush_profile")||"null");
@@ -383,9 +418,7 @@ async function initLobbyPreview(){
     const key=new THREE.DirectionalLight(0xffffff,2.2);key.position.set(-3,5,4);lobbyPreviewScene.add(key);
     const floor=new THREE.Mesh(new THREE.CircleGeometry(1.7,48),new THREE.MeshStandardMaterial({color:0x596a52,roughness:1}));
     floor.rotation.x=-Math.PI/2;floor.position.y=0;lobbyPreviewScene.add(floor);
-    const {GLTFLoader}=await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js");
-    const loader=new GLTFLoader();
-    const gltf=await loader.loadAsync("/assets/human.glb");
+    const gltf=await loadHumanGLTF();
     lobbyPreviewModel=gltf.scene;
     const box=new THREE.Box3().setFromObject(lobbyPreviewModel);
     const size=new THREE.Vector3();box.getSize(size);
@@ -484,19 +517,16 @@ function loadRealisticOpponent(g,dressId,character){
   if(opponentModelLoading)return;
   opponentModelLoading=true;
   Promise.all([
-    import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js"),
-    import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js")
+    import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js"),
+    loadHumanGLTF()
   ])
-    .then(([{GLTFLoader},{clone}])=>{
-      const loader=new GLTFLoader();
-      loader.load("/assets/human.glb",gltf=>{
-        opponentModelTemplate=gltf.scene;
-        window.cloneHumanModel=clone;
-        opponentAnimations=gltf.animations||[];
-        opponentModelLoading=false;
-        opponents.forEach(op=>replaceOpponentWithRealistic(op,op.userData.dress||"starter"));
-      },undefined,err=>{opponentModelLoading=false;console.warn("Opponent model failed; fallback retained.",err);});
-    }).catch(()=>{opponentModelLoading=false;});
+    .then(([{clone},gltf])=>{
+      opponentModelTemplate=gltf.scene;
+      window.cloneHumanModel=clone;
+      opponentAnimations=gltf.animations||[];
+      opponentModelLoading=false;
+      opponents.forEach(op=>replaceOpponentWithRealistic(op,op.userData.dress||"starter",op.userData.character||"nobita"));
+    }).catch(err=>{opponentModelLoading=false;console.warn("Opponent human model failed; procedural fallback retained.",err);});
 }
 
 function replaceOpponentWithRealistic(g,dressId,character){
@@ -1198,74 +1228,61 @@ function init3D(){
   car.position.set(laneX[targetLane],0,3);
   scene.add(car);
 
-  // Optional real-human replacement. Failure leaves the visible runner above.
+  // Replace the procedural avatar with the textured, rigged human. Try
+  // the local proxy and CDN backups; keep the existing avatar until success.
   (async()=>{
+    let settled=false;
+    const raceModelStatus=document.createElement("div");
+    raceModelStatus.id="humanModelStatus";
+    raceModelStatus.textContent="👤 HUMAN: loading…";
+    raceModelStatus.style.cssText="position:absolute;left:8px;bottom:8px;z-index:6;background:rgba(0,0,0,.65);padding:5px 8px;border-radius:8px;font-size:11px;color:#ffd600;pointer-events:none";
+    document.getElementById("game")?.appendChild(raceModelStatus);
+    const fallbackTimer=setTimeout(()=>{if(!settled)console.warn("4 GAP RUSH: human model is still loading; fallback remains visible");},30000);
     try{
-      const {GLTFLoader}=await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js");
-      const loader=new GLTFLoader();
-      const modelUrl="/assets/human.glb";
-      let settled=false;
-      const raceModelStatus=document.createElement("div");
-      raceModelStatus.id="humanModelStatus";
-      raceModelStatus.textContent="👤 HUMAN: loading…";
-      raceModelStatus.style.cssText="position:absolute;left:8px;bottom:8px;z-index:6;background:rgba(0,0,0,.65);padding:5px 8px;border-radius:8px;font-size:11px;color:#ffd600;pointer-events:none";
-      document.getElementById("game")?.appendChild(raceModelStatus);
-      const fallbackTimer=setTimeout(()=>{if(!settled) console.warn("4 GAP RUSH: human model is still loading; fallback remains visible until it finishes");},30000);
-
-      loader.load(modelUrl,gltf=>{
-        settled=true; clearTimeout(fallbackTimer);
-        if(!car||!scene)return;
-
-        const human=gltf.scene;
-        human.traverse(o=>{if(o.isMesh){o.material=Array.isArray(o.material)?o.material.map(m=>m?.clone?.()||m):(o.material?.clone?.()||o.material);}});
-        let meshCount=0;
-        human.traverse(o=>{if(o.isMesh)meshCount++;});
-        const box=new THREE.Box3().setFromObject(human);
-        const size=new THREE.Vector3(); box.getSize(size);
-
-        // Reject broken/empty/absurd models instead of replacing the visible avatar.
-        if(!meshCount || !Number.isFinite(size.y) || size.y<.1 || size.y>1000){
-          console.warn("4 GAP RUSH: invalid human GLB; fallback kept");
-          return;
-        }
-
-        if(size.y>0.01) human.scale.setScalar(1.75/size.y);
-        const fitted=new THREE.Box3().setFromObject(human);
-        human.position.set(0,-fitted.min.y,0);
-        human.rotation.y=Math.PI;
-        human.traverse(o=>{
-          if(!o.isMesh)return;
-          o.castShadow=true; o.receiveShadow=true;
-          const mats=Array.isArray(o.material)?o.material:[o.material];
-          mats.forEach(mat=>{
-            if(!mat)return;
-            if("roughness" in mat)mat.roughness=Math.min(Number.isFinite(mat.roughness)?mat.roughness:.72,.95);
-            if("metalness" in mat)mat.metalness=Math.min(Number.isFinite(mat.metalness)?mat.metalness:0,.12);
-            mat.needsUpdate=true;
-          });
+      const gltf=await loadHumanGLTF();
+      settled=true;clearTimeout(fallbackTimer);
+      if(!car||!scene)return;
+      const human=gltf.scene;
+      human.traverse(o=>{if(o.isMesh)o.material=Array.isArray(o.material)?o.material.map(m=>m?.clone?.()||m):(o.material?.clone?.()||o.material);});
+      let meshCount=0;
+      human.traverse(o=>{if(o.isMesh)meshCount++;});
+      const box=new THREE.Box3().setFromObject(human);
+      const size=new THREE.Vector3();box.getSize(size);
+      if(!meshCount||!Number.isFinite(size.y)||size.y<.1||size.y>1000){
+        throw new Error("Human GLB has invalid dimensions or no meshes");
+      }
+      human.scale.setScalar(1.75/size.y);
+      const fitted=new THREE.Box3().setFromObject(human);
+      human.position.set(0,-fitted.min.y,0);
+      human.rotation.y=Math.PI;
+      human.traverse(o=>{
+        if(!o.isMesh)return;
+        o.castShadow=true;o.receiveShadow=true;
+        const mats=Array.isArray(o.material)?o.material:[o.material];
+        mats.forEach(mat=>{
+          if(!mat)return;
+          if("roughness" in mat)mat.roughness=Math.min(Number.isFinite(mat.roughness)?mat.roughness:.72,.95);
+          if("metalness" in mat)mat.metalness=Math.min(Number.isFinite(mat.metalness)?mat.metalness:0,.12);
+          mat.needsUpdate=true;
         });
-
-        [...car.children].forEach(ch=>car.remove(ch));
-        applyDressToModel(human,playerProfile.equipped);
-        car.add(human);
-        applyDressToModel(human,playerProfile.equipped);
-        window.runnerLimbs=[];
-        car.userData.realistic=true;
-        car.userData.human=human;
-        car.userData.runnerPhase=0;
-        if(raceModelStatus)raceModelStatus.textContent="👤 HUMAN: loaded";
-        raceModelStatus.style.color="#50f6c5";
-        setTimeout(()=>raceModelStatus.remove(),2200);
-        console.log("4 GAP RUSH: textured human loaded from same-origin /assets/human.glb");
-      },undefined,err=>{
-        settled=true; clearTimeout(fallbackTimer);
-        if(raceModelStatus){raceModelStatus.textContent="👤 HUMAN: ERROR — fallback";
-        raceModelStatus.title="Check /assets/human-status";raceModelStatus.style.color="#ff6b6b";}
-        console.warn("4 GAP RUSH: human GLB failed; visible fallback retained",err);
       });
+      [...car.children].forEach(ch=>car.remove(ch));
+      applyDressToModel(human,playerProfile.equipped);
+      car.add(human);
+      car.userData.realistic=true;
+      car.userData.human=human;
+      car.userData.runnerPhase=0;
+      if(raceModelStatus)raceModelStatus.textContent="👤 HUMAN: loaded";
+      raceModelStatus.style.color="#50f6c5";
+      setTimeout(()=>raceModelStatus.remove(),2200);
     }catch(err){
-      const s=document.getElementById("humanModelStatus");if(s){s.textContent="👤 HUMAN: loader error — fallback";s.style.color="#ff6b6b";}
-      console.warn("4 GAP RUSH: human loader failed; visible fallback retained",err);
+      settled=true;clearTimeout(fallbackTimer);
+      if(raceModelStatus){
+        raceModelStatus.textContent="👤 HUMAN: unavailable — retry refresh";
+        raceModelStatus.title=String(err?.message||err);
+        raceModelStatus.style.color="#ff6b6b";
+      }
+      console.warn("4 GAP RUSH: realistic human model failed; fallback retained",err);
     }
   })();
 
