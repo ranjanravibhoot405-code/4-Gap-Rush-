@@ -1291,14 +1291,16 @@ function init3D(){
     }
   })();
 
-  // Dry, deep ravines: deliberately NO water mesh or water material.
-  // Each gap is an open canyon cut through the road with exposed earth walls,
-  // broken rock faces and a shadowed bottom well below the running surface.
+  // Water-filled drainage-channel gaps: visible moving water sits well below
+  // the road, with open ends so the channel reads as a real gap to jump across.
   gapObjects=[];
   const cliffMat=new THREE.MeshStandardMaterial({color:0x594b3e,roughness:1,flatShading:true});
   const cliffDarkMat=new THREE.MeshStandardMaterial({color:0x292d30,roughness:1,flatShading:true});
   const ledgeMat=new THREE.MeshStandardMaterial({color:0x80694e,roughness:1,flatShading:true});
   const warningMat=new THREE.MeshStandardMaterial({color:0xffbd35,emissive:0x291400,roughness:.8});
+  const waterMat=new THREE.MeshStandardMaterial({color:0x087fba,roughness:.22,metalness:.08,transparent:true,opacity:.94,emissive:0x003044,emissiveIntensity:.18,side:THREE.DoubleSide});
+  const waterMeshes=[];
+  const rippleMat=new THREE.MeshBasicMaterial({color:0x9beaff,transparent:true,opacity:.48,side:THREE.DoubleSide});
   const rubbleMats=[0x5a5d5d,0x716b60,0x484d51,0x827766].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1,flatShading:true}));
 // Visible checkered finish gantry at the 2000 m finish line.
   finishGate=new THREE.Group();
@@ -1324,11 +1326,20 @@ function init3D(){
   gaps.forEach((g,i)=>{
     const at=typeof g==="number"?g:g.at;
     const ravine=new THREE.Group();
-    // Each gap is centered exactly on its authoritative meter checkpoint.
-    // Keep the opening long enough to be unmistakable from the chase camera.
-    // Dark floor, far below the road: this is a dry chasm, not a blue surface.
-    const floor=new THREE.Mesh(new THREE.BoxGeometry(12.2,.7,3.8),cliffDarkMat);
-    floor.position.set(0,-1.2,0);floor.receiveShadow=true;ravine.add(floor);
+    // A recessed channel bed plus a blue, animated water surface makes the
+    // opening read as a drainage canal rather than a dry hole or road overlay.
+    const floor=new THREE.Mesh(new THREE.BoxGeometry(12.2,.7,4.4),cliffDarkMat);
+    floor.position.set(0,-1.65,0);floor.receiveShadow=true;ravine.add(floor);
+    const water=new THREE.Mesh(new THREE.PlaneGeometry(11.9,3.55,18,8),waterMat.clone());
+    water.rotation.x=-Math.PI/2;water.position.set(0,-1.12,0);water.receiveShadow=false;
+    water.userData.waterBaseY=-1.12;water.userData.waterPhase=Math.random()*Math.PI*2;
+    ravine.add(water);waterMeshes.push(water);
+    // Short reflective ripple lines across the channel, kept below the road lip.
+    for(let r=0;r<7;r++){
+      const ripple=new THREE.Mesh(new THREE.PlaneGeometry(1.1+Math.random()*2.2,.025),rippleMat);
+      ripple.rotation.x=-Math.PI/2;ripple.position.set((Math.random()-.5)*8,-1.095,-1.35+r*.43);
+      ripple.userData.ripplePhase=Math.random()*Math.PI*2;ravine.add(ripple);waterMeshes.push(ripple);
+    }
     // Rough cut-earth walls on both sides and both ends of the opening.
     for(const side of [-1,1]){
       // Side walls stay outside the 12m road opening so they cannot
@@ -1372,6 +1383,13 @@ function animate(){
 
   if(racing){
     sceneryClock+=0.22;
+    // Subtle water motion/reflections in every visible drainage gap.
+    waterMeshes.forEach((mesh,i)=>{
+      const phase=(performance.now()*.0015)+(mesh.userData.waterPhase||mesh.userData.ripplePhase||i);
+      if(mesh.userData.waterBaseY!==undefined)mesh.position.y=mesh.userData.waterBaseY+Math.sin(phase)*.025;
+      else mesh.position.x+=Math.sin(phase)*.0015;
+      if(mesh.material&&mesh.material.color&&mesh.material.color.b!==undefined)mesh.material.opacity=.9+Math.sin(phase)*.035;
+    });
     const now=performance.now();
     const dt=Math.min((now-(lastFrame||now))/1000,0.05);
     lastFrame=now;
