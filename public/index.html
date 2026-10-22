@@ -189,8 +189,8 @@ async function loadHumanGLTF(){
       const loader=new GLTFLoader();
       const sources=[
         "/assets/human.glb",
-        "https://cdn.jsdelivr.net/gh/kunalkushwaha/vsim@main/packages/assets/library/suited.glb",
-        "https://cdn.jsdelivr.net/gh/kunalkushwaha/vsim@main/packages/assets/library/human.glb"
+        "https://cdn.jsdelivr.net/gh/kunalkushwaha/vsim@main/packages/assets/library/human.glb",
+        "https://cdn.jsdelivr.net/gh/kunalkushwaha/vsim@main/packages/assets/library/suited.glb"
       ];
       let lastError=null;
       for(const url of sources){
@@ -1277,6 +1277,14 @@ function init3D(){
       car.userData.realistic=true;
       car.userData.human=human;
       car.userData.runnerPhase=0;
+      // Play an actual run/walk clip when the model provides one; without this
+      // the imported human stands stiffly while the road moves underneath.
+      humanMixer=null;
+      const runClip=(gltf.animations||[]).find(a=>/run|jog|walk/i.test(a.name))||(gltf.animations||[])[0];
+      if(runClip){
+        humanMixer=new THREE.AnimationMixer(human);
+        humanMixer.clipAction(runClip).reset().play();
+      }
       if(raceModelStatus)raceModelStatus.textContent="👤 HUMAN: loaded";
       raceModelStatus.style.color="#50f6c5";
       setTimeout(()=>raceModelStatus.remove(),2200);
@@ -1356,17 +1364,17 @@ function init3D(){
     // IMPORTANT: do NOT put a solid wall across the road at either end.
     // A previous cut-face mesh filled the whole 12.2m road opening, so the
     // third-person camera saw a giant black/brown wall instead of an open gap.
-    // Keep only low broken earth lips around the edges and warning stripes.
-    for(const z of [-0.95,0.95]){
-      for(let n=0;n<18;n++){
-        const chunk=new THREE.Mesh(new THREE.DodecahedronGeometry(.12+Math.random()*.28,0),ledgeMat);
-        const edgeX=-5.9+Math.random()*11.8;
-        chunk.position.set(edgeX,-.12+Math.random()*.25,z+(Math.random()-.5)*.18);
+    // Keep the actual running/jumping lane clear. Earth chunks and safety
+    // markings sit only at the outer shoulders, never across the water opening.
+    for(const side of [-1,1]){
+      for(let n=0;n<7;n++){
+        const chunk=new THREE.Mesh(new THREE.DodecahedronGeometry(.12+Math.random()*.24,0),ledgeMat);
+        chunk.position.set(side*(5.9+Math.random()*.45),-.12+Math.random()*.18,(Math.random()-.5)*2.8);
         chunk.rotation.set(Math.random(),Math.random()*3,Math.random());
         ravine.add(chunk);
       }
-      const stripe=new THREE.Mesh(new THREE.BoxGeometry(12,.09,.16),warningMat);
-      stripe.position.set(0,.12,z);
+      const stripe=new THREE.Mesh(new THREE.BoxGeometry(.14,.07,3.4),warningMat);
+      stripe.position.set(side*5.82,.08,0);
       ravine.add(stripe);
     }
     ravine.position.set(0,0,-at/10);scene.add(ravine);gapObjects.push(ravine);
