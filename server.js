@@ -418,7 +418,7 @@ wss.on("connection", ws => {
       if (!room.started || room.ended || !player.alive || player.finished) return;
       player.gapIndex = player.gapIndex || 0;
       const gap = room.gaps[player.gapIndex];
-      if (!gap || player.dist < gap.at - 18 || player.dist > gap.at + 2) return;
+      if (!gap || player.dist < gap.at - 2 || player.dist > gap.at + 2) return;
       player.gapIndex++;
       const hadRecovery = player.recovery > 0;
       if (hadRecovery) player.recovery--;
@@ -428,8 +428,9 @@ wss.on("connection", ws => {
       broadcast(room, roomState(room));
       if ([...room.players.values()].every(p => p.finished || !p.alive)) {
         const results = [...room.players.values()]
-          .map(p => ({ name: p.name, finished: p.finished, alive: p.alive, time: p.finishTime ?? null, dist: p.dist }))
+          .map(p => ({ id:p.id, name:p.name, finished:p.finished, alive:p.alive, time:p.finishTime ?? null, dist:p.dist, points:racePoints(p.finishTime,p.finished) }))
           .sort((a, b) => a.finished !== b.finished ? (a.finished ? -1 : 1) : (a.time ?? Infinity) - (b.time ?? Infinity));
+        room.ended = true;
         broadcast(room, { type: "race_over", results, winner: results.find(p => p.finished)?.name || null });
       }
       return;
@@ -447,10 +448,10 @@ wss.on("connection", ws => {
         return;
       }
 
-      // A jump is valid only when the runner reaches the 400 m checkpoint
-      // (within 2 m before it, through 5 m after it).
-      if (player.dist < gap.at - 18 || player.dist > gap.at + 2) {
-        return send(ws, { type:"error", message:"Jump is available from 18 m before to 2 m after the " + gap.at + " m gap." });
+      // The UI opens at 2 m before the gap. Enforce the same safe window
+      // on the server so a stale/modified client cannot jump too early.
+      if (player.dist < gap.at - 2 || player.dist > gap.at + 2) {
+        return send(ws, { type:"error", message:"Jump is available from 2 m before to 2 m after the " + gap.at + " m gap." });
       }
 
       const choice = Number(m.choice);
