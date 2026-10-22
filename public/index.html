@@ -1260,8 +1260,18 @@ function init3D(){
       const fitted=new THREE.Box3().setFromObject(human);
       human.position.set(0,-fitted.min.y,0);
       human.rotation.y=Math.PI;
+      // Strip obvious oversized box props/accessories from third-party avatar
+      // assets (the unwanted dark rectangular slab seen in mobile race view).
+      const removeMeshes=[];
+      human.updateMatrixWorld(true);
       human.traverse(o=>{
         if(!o.isMesh)return;
+        const nm=(o.name||"").toLowerCase();
+        if(/backpack|rucksack|suitcase|boxprop|cubeprop/i.test(nm)){removeMeshes.push(o);return;}
+        if(o.geometry&&o.geometry.type==="BoxGeometry"){
+          const b=new THREE.Box3().setFromObject(o),sz=new THREE.Vector3();b.getSize(sz);
+          if(sz.x>.42&&sz.y>.28&&sz.z>.12){removeMeshes.push(o);return;}
+        }
         o.castShadow=true;o.receiveShadow=true;
         const mats=Array.isArray(o.material)?o.material:[o.material];
         mats.forEach(mat=>{
@@ -1271,6 +1281,7 @@ function init3D(){
           mat.needsUpdate=true;
         });
       });
+      removeMeshes.forEach(o=>o.parent?.remove(o));
       [...car.children].forEach(ch=>car.remove(ch));
       applyDressToModel(human,playerProfile.equipped);
       car.add(human);
