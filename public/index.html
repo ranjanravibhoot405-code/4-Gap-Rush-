@@ -18,7 +18,7 @@ body{margin:0;background:#101426;color:white;font-family:Arial;text-align:center
 .dressCard b{display:block}
 .dressCard small{color:#cbd5e1}
 .dressCard button{width:100%;margin:7px 0 0}
- #racePage h2{margin:5px;color:#50f6c5} #racePage #game{height:auto;min-height:0;max-height:none;flex:1;width:100%;} #racePage .raceTop{display:flex;align-items:center;justify-content:space-between;gap:8px} #racePage #controls{bottom:8px} #racePage #controls button{font-size:20px;min-width:62px} #racePage #raceStatus{margin:5px}
+ #recoveryAction{position:absolute;inset:22% 8% auto;z-index:7;background:rgba(4,10,20,.96);border:2px solid #50f6c5;border-radius:16px;padding:22px;font-size:25px;color:#fff;text-shadow:none;box-shadow:0 12px 40px rgba(0,0,0,.55)} #racePage h2{margin:5px;color:#50f6c5} #racePage #game{height:auto;min-height:0;max-height:none;flex:1;width:100%;} #racePage .raceTop{display:flex;align-items:center;justify-content:space-between;gap:8px} #racePage #controls{bottom:8px} #racePage #controls button{font-size:20px;min-width:62px} #racePage #raceStatus{margin:5px}
 main{max-width:600px;margin:auto;padding:12px}
 h1{color:#50f6c5}
 .panel{background:#1d2540;padding:15px;border-radius:16px;margin:12px 0}
@@ -108,6 +108,9 @@ button:disabled{opacity:.35}
 <p id="recovery">Recovery: 2</p>
 <p id="nextGapHud">NEXT GAP: 400 m</p><p id="boostHud" style="font-size:18px;font-weight:bold;color:#50f6c5;margin:5px">BOOST: READY AFTER SUCCESSFUL JUMP</p>
 </div>
+<div id="recoveryAction" class="hidden" aria-live="polite"></div>
+<div id="viewHint">↔️ DRAG TO LOOK AROUND • 360° VIEW</div>
+<div id="laneControls"><button onclick="setLane(-1)" aria-label="Move left">◀</button><span>LANE</span><button onclick="setLane(1)" aria-label="Move right">▶</button></div>
 <div id="jumpGuide" class="hidden"><b id="pitTitle">⚠️ BIG PIT AHEAD</b><small id="pitInfo">Choose jump distance</small></div>
 <div id="controls" class="hidden">
 <button onclick="jump(3)">3</button>
@@ -995,7 +998,7 @@ function init3D(){
   if(renderer){
     renderer.dispose();
     container.innerHTML=
-      '<div id="hud"><b id="distance">Distance: 0 / 2000</b><p id="raceTimer" style="font-size:20px;font-weight:bold;color:#ffd600;margin:5px">TIME: 00:00.00</p><p id="recovery">Recovery: 2</p><p id="nextGapHud">NEXT GAP: 400 m</p></div><div id="jumpGuide"><b id="pitTitle">⚠️ BIG PIT AHEAD</b><small id="pitInfo">Choose jump distance</small></div><div id="viewHint">↔️ DRAG TO LOOK AROUND • 360° VIEW</div><div id="laneControls"><button onclick="setLane(-1)">◀</button><span>LANE</span><button onclick="setLane(1)">▶</button></div><div id="controls"></div>';
+      '<div id="hud"><b id="distance">Distance: 0 / 2000</b><p id="raceTimer" style="font-size:20px;font-weight:bold;color:#ffd600;margin:5px">TIME: 00:00.00</p><p id="recovery">Recovery: 2</p><p id="nextGapHud">NEXT GAP: 400 m</p><p id="boostHud" style="font-size:18px;font-weight:bold;color:#50f6c5;margin:5px">BOOST: READY AFTER SUCCESSFUL JUMP</p></div><div id="recoveryAction" class="hidden" aria-live="polite"></div><div id="jumpGuide" class="hidden"><b id="pitTitle">⚠️ BIG PIT AHEAD</b><small id="pitInfo">Choose jump distance</small></div><div id="viewHint">↔️ DRAG TO LOOK AROUND • 360° VIEW</div><div id="laneControls"><button onclick="setLane(-1)" aria-label="Move left">◀</button><span>LANE</span><button onclick="setLane(1)" aria-label="Move right">▶</button></div><div id="controls" class="hidden"></div>';
   }
 
   scene=new THREE.Scene();
@@ -1300,6 +1303,17 @@ function init3D(){
         humanMixer=new THREE.AnimationMixer(human);
         humanMixer.clipAction(runClip).reset().play();
       }
+      // Some realistic GLB files contain a rig but no run clip. Animate the
+      // imported human's actual arm/leg bones so it still visibly runs.
+      car.userData.gaitBones=[];
+      human.traverse(o=>{
+        if(!o.isBone)return;
+        const n=String(o.name||"").toLowerCase();
+        let kind=null,phase=0;
+        if(/upper.?arm|arm.?[lr]|left.?arm|right.?arm|shoulder/.test(n)){kind="arm";phase=/left|_l|\\.l\\b/.test(n)?0:Math.PI;}
+        else if(/thigh|upper.?leg|leg.?[lr]|left.?leg|right.?leg/.test(n)){kind="leg";phase=/left|_l|\\.l\\b/.test(n)?Math.PI:0;}
+        if(kind)car.userData.gaitBones.push({bone:o,kind,phase,baseX:o.rotation.x,baseZ:o.rotation.z});
+      });
       if(raceModelStatus)raceModelStatus.textContent="👤 HUMAN: loaded";
       raceModelStatus.style.color="#50f6c5";
       setTimeout(()=>raceModelStatus.remove(),2200);
@@ -1421,12 +1435,12 @@ function animate(){
       if(fallSequence.phase==="fall"&&fallSequence.remaining<=0){
         if(!alive){
           fallSequence=null;
-          document.getElementById("recoveryAction").innerHTML="💥<br><b>ELIMINATED</b><br><small style=\'font-size:15px\'>No recovery bottle left.</small>";
+          document.getElementById("recoveryAction").classList.remove("hidden");document.getElementById("recoveryAction").innerHTML="💥<br><b>ELIMINATED</b><br><small style=\'font-size:15px\'>No recovery bottle left.</small>";
           document.getElementById("raceStatus").textContent="💥 You are out of the race.";
           if(car){car.position.y=-1.9;car.rotation.z=Math.PI*1.5;}
         }else{
           fallSequence.phase="bottle";fallSequence.remaining=2.0;
-          document.getElementById("recoveryAction").innerHTML="🧪✨<br><b>USING RECOVERY BOTTLE</b><br><small style=\'font-size:15px\'>Recovery: "+recovery+" • Reviving...</small>";
+          document.getElementById("recoveryAction").classList.remove("hidden");document.getElementById("recoveryAction").innerHTML="🧪✨<br><b>USING RECOVERY BOTTLE</b><br><small style=\'font-size:15px\'>Recovery: "+recovery+" • Reviving...</small>";
           if(car){car.position.y=-1.9;car.rotation.z=Math.PI*1.5;}
         }
       }else if(fallSequence.phase==="bottle"&&fallSequence.remaining<=0){
@@ -1549,6 +1563,13 @@ function animate(){
           h.position.y=-new THREE.Box3().setFromObject(h).min.y;
           h.rotation.x=Math.sin(phase)*.025;
           h.rotation.z=Math.cos(phase)*.018;
+          if(!humanMixer){
+            (car.userData.gaitBones||[]).forEach(({bone,kind,phase:offset,baseX,baseZ})=>{
+              const swing=Math.sin(phase+offset)*(kind==="arm"?.58:.78);
+              bone.rotation.x=baseX+swing;
+              bone.rotation.z=baseZ+(kind==="arm"?Math.cos(phase+offset)*.08:0);
+            });
+          }
         }
       }
     }
