@@ -130,7 +130,7 @@ let opponents=new Map();
 let opponentStates=new Map();
 let opponentLastSeen=new Map();
 let latestPlayers=[];
-let gapObjects=[],roadLines=[];
+let gapObjects=[],roadLines=[],waterMeshes=[];
 let gaps=[];
 let usedChoices=[];
 let lastDistance=0;
@@ -1299,7 +1299,7 @@ function init3D(){
   const ledgeMat=new THREE.MeshStandardMaterial({color:0x80694e,roughness:1,flatShading:true});
   const warningMat=new THREE.MeshStandardMaterial({color:0xffbd35,emissive:0x291400,roughness:.8});
   const waterMat=new THREE.MeshStandardMaterial({color:0x087fba,roughness:.22,metalness:.08,transparent:true,opacity:.94,emissive:0x003044,emissiveIntensity:.18,side:THREE.DoubleSide});
-  const waterMeshes=[];
+  waterMeshes=[];
   const rippleMat=new THREE.MeshBasicMaterial({color:0x9beaff,transparent:true,opacity:.48,side:THREE.DoubleSide});
   const rubbleMats=[0x5a5d5d,0x716b60,0x484d51,0x827766].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1,flatShading:true}));
 // Visible checkered finish gantry at the 2000 m finish line.
