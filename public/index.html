@@ -849,12 +849,8 @@ function scheduleReconnect(){
 function showRacePage(){document.getElementById("lobbyPage").classList.add("hidden");document.getElementById("racePage").classList.remove("hidden");document.body.classList.add("racing");if(location.pathname!=="/race")history.pushState({page:"race"},"","/race");setTimeout(()=>{if(renderer){renderer.setSize(document.getElementById("game").clientWidth,document.getElementById("game").clientHeight);camera.aspect=document.getElementById("game").clientWidth/document.getElementById("game").clientHeight;camera.updateProjectionMatrix();}},80);}
 function returnLobby(){document.getElementById("racePage").classList.add("hidden");document.getElementById("lobbyPage").classList.remove("hidden");document.body.classList.remove("racing");if(location.pathname==="/race")history.pushState({page:"lobby"},"","/");}
 window.addEventListener("popstate",()=>{if(location.pathname==="/race")showRacePage();else returnLobby();});
-if(location.pathname==="/race" && !racing){
-  history.replaceState({page:"lobby"},"","/");
-  document.getElementById("lobbyPage").classList.remove("hidden");
-  document.getElementById("racePage").classList.add("hidden");
-  document.body.classList.remove("racing");
-}
+// Keep /race as a stable entry URL. A direct visit or refresh should load
+// the game lobby at this URL rather than silently rewriting it to /.
 function status(t){
   document.getElementById("status").textContent=t;
 }
