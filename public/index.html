@@ -1310,8 +1310,8 @@ function init3D(){
         if(!o.isBone)return;
         const n=String(o.name||"").toLowerCase();
         let kind=null,phase=0;
-        if(/upper.?arm|arm.?[lr]|left.?arm|right.?arm|shoulder/.test(n)){kind="arm";phase=/left|_l|\\.l\\b/.test(n)?0:Math.PI;}
-        else if(/thigh|upper.?leg|leg.?[lr]|left.?leg|right.?leg/.test(n)){kind="leg";phase=/left|_l|\\.l\\b/.test(n)?Math.PI:0;}
+        if(/upper.?arm|arm.?[lr]|left.?arm|right.?arm|shoulder/.test(n)){kind="arm";phase=/left|_l|\.l\b/.test(n)?0:Math.PI;}
+        else if(/thigh|upper.?leg|leg.?[lr]|left.?leg|right.?leg/.test(n)){kind="leg";phase=/left|_l|\.l\b/.test(n)?Math.PI:0;}
         if(kind)car.userData.gaitBones.push({bone:o,kind,phase,baseX:o.rotation.x,baseZ:o.rotation.z});
       });
       if(raceModelStatus)raceModelStatus.textContent="👤 HUMAN: loaded";
