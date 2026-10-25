@@ -433,14 +433,13 @@ wss.on("connection", ws => {
         skipDist >= gap.at - 12 && skipDist <= gap.at + 3;
       const serverNearTakeoff = player.dist >= gap.at - 12 && player.dist <= gap.at + 3;
       if (!nearTakeoff && !serverNearTakeoff) return;
-      // Advance to the far side on auto-skip so an unselected jump cannot freeze
-      // the racer at the take-off marker; next checkpoint remains authoritative.
-      player.dist = Math.max(player.dist, gap.at + 20);
+      // A missed tap must not permanently eliminate the runner. Apply a
+      // time/distance penalty, consume recovery if available, and continue
+      // beyond this gap so the player can still finish the race.
       player.gapIndex++;
-      const hadRecovery = player.recovery > 0;
-      if (hadRecovery) player.recovery--;
-      player.dist = hadRecovery ? gap.at + 20 : gap.at;
-      if (!hadRecovery) player.alive = false;
+      if (player.recovery > 0) player.recovery--;
+      player.dist = gap.at + 20;
+      player.alive = true;
       send(ws, { type: "jump_result", result: "fall", recovery: Math.max(0, player.recovery), dist: player.dist, alive: player.alive, usedChoices: player.usedChoices || [] });
       broadcast(room, roomState(room));
       if ([...room.players.values()].every(p => p.finished || !p.alive)) {
