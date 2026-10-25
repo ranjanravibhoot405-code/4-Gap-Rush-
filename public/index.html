@@ -961,7 +961,7 @@ function jump(choice){
     return;
   }
   jumpTimer=0.8;
-  send({type:"jump",choice});
+  send({type:"jump",choice,dist:distance});
 }
 
 function updateHUD(){
