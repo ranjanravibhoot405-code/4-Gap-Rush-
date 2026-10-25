@@ -1311,10 +1311,13 @@ function init3D(){
       if(!meshCount||!Number.isFinite(size.y)||size.y<.1||size.y>1000){
         throw new Error("Human GLB has invalid dimensions or no meshes");
       }
-      human.scale.setScalar(1.75/size.y);
+      // Fit the soldier to a natural third-person racing scale (not a giant
+      // foreground character), and face him forward down the road so the
+      // camera sees his back while he runs away from the viewer.
+      human.scale.setScalar(1.05/size.y);
       const fitted=new THREE.Box3().setFromObject(human);
       human.position.set(0,-fitted.min.y,0);
-      human.rotation.y=Math.PI;
+      human.rotation.y=0;
       // Remove the unwanted flat rectangular slab visible in the race view.
       // GLB meshes are usually BufferGeometry, so checking geometry.type for
       // BoxGeometry alone misses this prop. Detect broad, thin slab-shaped meshes.
