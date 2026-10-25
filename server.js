@@ -419,7 +419,15 @@ wss.on("connection", ws => {
       if (!room.started || room.ended || !player.alive || player.finished) return;
       player.gapIndex = player.gapIndex || 0;
       const gap = room.gaps[player.gapIndex];
-      if (!gap || player.dist < gap.at - 2 || player.dist > gap.at + 2) return;
+      if (!gap) return;
+      // Use the client's checkpoint distance as well as the last progress
+      // packet. The prompt starts 2.5 m before the gap, so the old +/-2 m
+      // server gate rejected every auto-skip and left the race frozen.
+      const skipDist = Number(m.dist);
+      if (Number.isFinite(skipDist) && skipDist >= gap.at - 2.75 && skipDist <= gap.at + 2.75) {
+        player.dist = Math.max(player.dist, Math.min(skipDist, gap.at + 2.75));
+      }
+      if (player.dist < gap.at - 2.75 || player.dist > gap.at + 2.75) return;
       player.gapIndex++;
       const hadRecovery = player.recovery > 0;
       if (hadRecovery) player.recovery--;
