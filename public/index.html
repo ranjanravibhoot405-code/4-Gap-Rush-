@@ -133,7 +133,7 @@ let opponents=new Map();
 let opponentStates=new Map();
 let opponentLastSeen=new Map();
 let latestPlayers=[];
-let gapObjects=[],roadLines=[],waterMeshes=[];
+let gapObjects=[],roadLines=[],waterMeshes=[],roadPoints=[];
 let gaps=[];
 let usedChoices=[];
 let lastDistance=0;
@@ -1034,6 +1034,7 @@ function init3D(){
   // Clear references from any previous race scene before rebuilding.
   roadLines.length=0;
   gapObjects.length=0;
+  roadPoints.length=0;
   window.runnerLimbs=[];
 
   // A new race creates a new Three.js scene. Rebuild opponent groups too;
@@ -1314,7 +1315,7 @@ function init3D(){
       // Fit the soldier to a natural third-person racing scale (not a giant
       // foreground character), and face him forward down the road so the
       // camera sees his back while he runs away from the viewer.
-      human.scale.setScalar(1.05/size.y);
+      human.scale.setScalar(0.82/size.y);
       const fitted=new THREE.Box3().setFromObject(human);
       human.position.set(0,-fitted.min.y,0);
       human.rotation.y=0;
@@ -1429,6 +1430,34 @@ function init3D(){
   const arrow=new THREE.Mesh(new THREE.ConeGeometry(1.05,.9,3),new THREE.MeshBasicMaterial({color:0xffdf00,toneMapped:false}));
   arrow.rotation.x=Math.PI/2;arrow.position.set(0,.22,5.1);finishGate.add(arrow);
   scene.add(finishGate);
+  // Golden point pickups are placed on the road in alternating lanes,
+  // away from the four water gaps. Each pickup is worth 10 shop points.
+  const pointMeters=[80,145,220,285,345,485,550,625,690,745,885,950,1025,1090,1145,1285,1350,1425,1490,1545,1685,1750,1825,1890,1945];
+  pointMeters.forEach((meter,i)=>{
+    const lane=(i*3+1)%4;
+    const pickup=new THREE.Group();
+    const coin=new THREE.Mesh(
+      new THREE.TorusGeometry(.28,.09,10,20),
+      new THREE.MeshStandardMaterial({color:0xffd52a,emissive:0x8b5a00,emissiveIntensity:.65,metalness:.72,roughness:.25})
+    );
+    coin.rotation.y=Math.PI/2;
+    coin.position.y=.72;
+    pickup.add(coin);
+    const core=new THREE.Mesh(
+      new THREE.SphereGeometry(.12,12,10),
+      new THREE.MeshStandardMaterial({color:0xfff2a1,emissive:0xffb300,emissiveIntensity:.8,metalness:.25,roughness:.3})
+    );
+    core.position.y=.72;
+    pickup.add(core);
+    const tagCanvas=document.createElement("canvas");tagCanvas.width=128;tagCanvas.height=64;
+    const tagCtx=tagCanvas.getContext("2d");tagCtx.fillStyle="#fff4a3";tagCtx.font="bold 34px Arial";tagCtx.textAlign="center";tagCtx.fillText("+10",64,42);
+    const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(tagCanvas),transparent:true,depthTest:false}));
+    tag.scale.set(.72,.36,1);tag.position.set(0,1.25,0);pickup.add(tag);
+    pickup.position.set(laneX[lane],0,3-meter/10);
+    pickup.userData={meter,lane,collected:false,coin};
+    scene.add(pickup);roadPoints.push(pickup);
+  });
+
   gaps.forEach((g,i)=>{
     const at=typeof g==="number"?g:g.at;
     const ravine=new THREE.Group();
@@ -1524,12 +1553,27 @@ function animate(){
     if(alive&&!fallSequence){
       if(boostTimer>0) boostTimer=Math.max(0,boostTimer-dt);
       const speedMultiplier=boostTimer>0?1.85:1;
-      const travelSpeed=14.5*speedMultiplier;
+      const travelSpeed=19.5*speedMultiplier;
       const upcoming=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
       const target=upcoming?(typeof upcoming==="number"?upcoming:upcoming.at):2000;
       if(visualDistance<target-2) visualDistance=Math.min(target-2,visualDistance+dt*travelSpeed);
       else if(!upcoming) visualDistance=Math.min(2000,visualDistance+dt*travelSpeed);
       distance=Math.max(distance,visualDistance);
+      // Collect pickups only when the runner passes them in the matching lane.
+      roadPoints.forEach(pickup=>{
+        if(pickup.userData.collected)return;
+        pickup.userData.coin.rotation.z+=dt*2.4;
+        pickup.userData.coin.rotation.x=Math.sin(now*.004+pickup.userData.meter)*.12;
+        if(distance>=pickup.userData.meter && Math.abs(targetLane-pickup.userData.lane)===0){
+          pickup.userData.collected=true;
+          scene.remove(pickup);
+          playerProfile.points+=10;
+          savePlayerProfile();
+          updateShopUI();
+          const status=document.getElementById("raceStatus");
+          if(status)status.textContent="🪙 +10 POINTS COLLECTED!";
+        }
+      });
       const nextCheckpoint=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
       const checkpointAt=nextCheckpoint?(typeof nextCheckpoint==="number"?nextCheckpoint:nextCheckpoint.at):null;
       const checkpointReady=checkpointAt!==null && distance>=checkpointAt-2 && distance<checkpointAt;
