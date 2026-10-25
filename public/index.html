@@ -945,7 +945,11 @@ function renderJumpButtons(){
   if(usedChoices.length>=4) controls.classList.add("hidden");
 }
 function setLane(dir){
+  if(!racing || !alive) return;
   targetLane=Math.max(0,Math.min(laneX.length-1,targetLane+dir));
+  // Apply lane changes immediately for touch controls; animation loop smooths
+  // the movement between lanes on slower mobile devices.
+  if(car) car.position.x=laneX[targetLane];
 }
 window.addEventListener("keydown",e=>{
   if(e.key==="ArrowLeft"||e.key.toLowerCase()==="a")setLane(-1);
@@ -1576,7 +1580,13 @@ function animate(){
       });
       const nextCheckpoint=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
       const checkpointAt=nextCheckpoint?(typeof nextCheckpoint==="number"?nextCheckpoint:nextCheckpoint.at):null;
-      const checkpointReady=checkpointAt!==null && distance>=checkpointAt-2 && distance<checkpointAt;
+      // Snap to a stable checkpoint threshold; floating point frame timing
+      // must not leave the runner a fraction of a metre short of the jump zone.
+      if(checkpointAt!==null && visualDistance>=checkpointAt-2.5 && visualDistance<checkpointAt-2){
+        visualDistance=checkpointAt-2;
+        distance=Math.max(distance,visualDistance);
+      }
+      const checkpointReady=checkpointAt!==null && distance>=checkpointAt-2.5 && distance<checkpointAt+0.25;
       const controls=document.getElementById("controls");
       const guide=document.getElementById("jumpGuide");
       if(controls) controls.classList.toggle("hidden",!checkpointReady);
@@ -1611,6 +1621,9 @@ function animate(){
     // Gaps, road slabs and finish line stay in one world coordinate system;
     // moving the player/camera prevents the camera from intersecting scenery.
     if(car){
+      // Keep the runner aligned with the selected lane every frame. This is
+      // important on touch devices where a lane tap can occur between frames.
+      car.position.x += (laneX[targetLane]-car.position.x)*Math.min(1,dt*12);
       car.position.z=3-distance/10;
     }
 
