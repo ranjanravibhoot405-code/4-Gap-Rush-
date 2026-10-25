@@ -433,7 +433,9 @@ wss.on("connection", ws => {
         skipDist >= gap.at - 12 && skipDist <= gap.at + 3;
       const serverNearTakeoff = player.dist >= gap.at - 12 && player.dist <= gap.at + 3;
       if (!nearTakeoff && !serverNearTakeoff) return;
-      player.dist = Math.max(player.dist, gap.at - 7);
+      // Advance to the far side on auto-skip so an unselected jump cannot freeze
+      // the racer at the take-off marker; next checkpoint remains authoritative.
+      player.dist = Math.max(player.dist, gap.at + 20);
       player.gapIndex++;
       const hadRecovery = player.recovery > 0;
       if (hadRecovery) player.recovery--;
@@ -469,12 +471,16 @@ wss.on("connection", ws => {
       const jumpDist = Number(m.dist);
       // Accept the jump throughout the marked approach zone. Clamp position
       // to the 7 m take-off line so the runner never starts the jump over water.
-      if (Number.isFinite(jumpDist) && jumpDist >= gap.at - 12 && jumpDist <= gap.at + 3) {
-        player.dist = Math.max(player.dist, gap.at - 7);
+      // Treat the click's reported position as authoritative for the safe-zone
+      // check; stale server progress must not reject a valid mobile tap.
+      const clickInSafeZone = Number.isFinite(jumpDist) &&
+        jumpDist >= gap.at - 12 && jumpDist <= gap.at - 6.5;
+      const serverInSafeZone = player.dist >= gap.at - 12 && player.dist <= gap.at - 6.5;
+      if (!clickInSafeZone && !serverInSafeZone) {
+        return send(ws, { type:"error", message:"Choose a jump in the marked zone before the gap." });
       }
-      if (player.dist < gap.at - 12 || player.dist > gap.at - 6.5) {
-        return send(ws, { type:"error", message:"Choose a jump before the gap, in the safe zone." });
-      }
+      // Lock take-off exactly 7 m before the pit. Never launch from above water.
+      player.dist = gap.at - 7;
 
       const choice = Number(m.choice);
       const remainingChoices = [3,5,7,9].filter(n => !player.usedChoices.includes(n));
