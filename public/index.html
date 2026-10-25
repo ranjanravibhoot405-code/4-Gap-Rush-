@@ -1312,10 +1312,22 @@ function init3D(){
       // Play an actual run/walk clip when the model provides one; without this
       // the imported human stands stiffly while the road moves underneath.
       humanMixer=null;
-      const runClip=(gltf.animations||[]).find(a=>/run|jog|walk/i.test(a.name))||(gltf.animations||[])[0];
+      // Only play a genuine run/jog/walk clip. The previous fallback to the
+      // first arbitrary animation could select an idle/jump/root-motion clip,
+      // making the human hover above the road. Strip root translation tracks
+      // so the animation moves the limbs but never lifts/translates the whole
+      // runner away from the road.
+      const runClip=(gltf.animations||[]).find(a=>/run|jog|walk/i.test(a.name));
       if(runClip){
-        humanMixer=new THREE.AnimationMixer(human);
-        humanMixer.clipAction(runClip).reset().play();
+        const safeClip=runClip.clone();
+        safeClip.tracks=safeClip.tracks.filter(track=>{
+          const path=String(track.name||"").toLowerCase();
+          return !(/(^|[.:/])position$/.test(path) && /root|hips|pelvis|armature|mixamorig/i.test(path));
+        });
+        if(safeClip.tracks.length){
+          humanMixer=new THREE.AnimationMixer(human);
+          humanMixer.clipAction(safeClip).reset().play();
+        }
       }
       // Some realistic GLB files contain a rig but no run clip. Animate the
       // imported human's actual arm/leg bones so it still visibly runs.
