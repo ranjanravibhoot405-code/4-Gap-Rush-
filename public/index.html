@@ -1574,8 +1574,10 @@ function animate(){
         if(car.userData.realistic && car.userData.human){
           const h=car.userData.human;
           const phase=(car.userData.runnerPhase||0)+runT*1.8;
-          h.position.y=-new THREE.Box3().setFromObject(h).min.y;
-          h.rotation.x=Math.sin(phase)*.025;
+          // Keep the model's ground offset fixed from load time. Recomputing
+          // its bounding-box minimum every animation frame lifts the whole
+          // character whenever a foot swings up, making the runner appear to fly.
+          h.rotation.x=Math.sin(phase)*.012;
           h.rotation.z=Math.cos(phase)*.018;
           if(!humanMixer){
             (car.userData.gaitBones||[]).forEach(({bone,kind,phase:offset,baseX,baseZ})=>{
