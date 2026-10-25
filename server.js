@@ -426,10 +426,14 @@ wss.on("connection", ws => {
       // packet. The prompt starts 2.5 m before the gap, so the old +/-2 m
       // server gate rejected every auto-skip and left the race frozen.
       const skipDist = Number(m.dist);
-      if (Number.isFinite(skipDist) && skipDist >= gap.at - 7.75 && skipDist <= gap.at - 6.5) {
-        player.dist = Math.max(player.dist, Math.min(skipDist, gap.at - 7));
-      }
-      if (player.dist < gap.at - 7.75 || player.dist > gap.at - 6.5) return;
+      // Auto-resolve an unchosen gap if the client reaches the take-off area.
+      // Mobile frame timing and authoritative snapshots can differ by several
+      // metres; a narrow gate here can permanently freeze the whole race.
+      const nearTakeoff = Number.isFinite(skipDist) &&
+        skipDist >= gap.at - 12 && skipDist <= gap.at + 3;
+      const serverNearTakeoff = player.dist >= gap.at - 12 && player.dist <= gap.at + 3;
+      if (!nearTakeoff && !serverNearTakeoff) return;
+      player.dist = Math.max(player.dist, gap.at - 7);
       player.gapIndex++;
       const hadRecovery = player.recovery > 0;
       if (hadRecovery) player.recovery--;
@@ -463,12 +467,13 @@ wss.on("connection", ws => {
       // jump click. Accept the distance attached to the jump request as well
       // as the last server snapshot, but still enforce the narrow gap window.
       const jumpDist = Number(m.dist);
-      if (Number.isFinite(jumpDist) && jumpDist >= gap.at - 7.75 && jumpDist <= gap.at - 6.5) {
-        player.dist = Math.max(player.dist, Math.min(jumpDist, gap.at - 7));
+      // Accept the jump throughout the marked approach zone. Clamp position
+      // to the 7 m take-off line so the runner never starts the jump over water.
+      if (Number.isFinite(jumpDist) && jumpDist >= gap.at - 12 && jumpDist <= gap.at + 3) {
+        player.dist = Math.max(player.dist, gap.at - 7);
       }
-      // Jump must be selected before the edge; never accept a late jump on top of the pit.
-      if (player.dist < gap.at - 7.75 || player.dist > gap.at - 6.5) {
-        return send(ws, { type:"error", message:"Choose a jump about 7 m before the gap, at the take-off line." });
+      if (player.dist < gap.at - 12 || player.dist > gap.at - 6.5) {
+        return send(ws, { type:"error", message:"Choose a jump before the gap, in the safe zone." });
       }
 
       const choice = Number(m.choice);
