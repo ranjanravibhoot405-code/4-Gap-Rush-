@@ -218,9 +218,9 @@ async function loadHumanGLTF(){
       // Try more than one CDN and put a hard timeout on each request so a
       // blocked asset host cannot leave the avatar stuck on "loading".
       const sources=[
-        // Load through this game's origin first so CORS rules on the model host
-        // cannot force the game to fall back to the placeholder runner.
-        "/assets/human.glb",
+        // Army Soldier model is served by server.js from this game's own origin.
+        // Versioned URL bypasses stale browser/CDN caches after redeployment.
+        "/assets/human.glb?model=army-soldier-v2",
         "https://www.innerscene.com/api/library/run-jordan-3d-person-animated-f10ebd7e/download",
         "https://www.innerscene.com/api/library/run-harper-3d-person-animated-a726b25c/download"
       ];
