@@ -456,8 +456,10 @@ wss.on("connection", ws => {
       if (Number.isFinite(jumpDist) && jumpDist >= gap.at - 2 && jumpDist <= gap.at + 2) {
         player.dist = Math.max(player.dist, Math.min(jumpDist, gap.at + 2));
       }
-      if (player.dist < gap.at - 2 || player.dist > gap.at + 2) {
-        return send(ws, { type:"error", message:"Jump is available from 2 m before to 2 m after the " + gap.at + " m gap." });
+      // Small tolerance prevents float rounding / mobile packet timing from
+      // rejecting a valid jump at the checkpoint.
+      if (player.dist < gap.at - 2.75 || player.dist > gap.at + 2.75) {
+        return send(ws, { type:"error", message:"Jump is available just before the " + gap.at + " m gap. Try again at the checkpoint." });
       }
 
       const choice = Number(m.choice);
