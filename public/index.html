@@ -843,7 +843,9 @@ function connect(){
     }
 
     if(m.type==="jump_result"){
+      if(Array.isArray(m.usedChoices)) usedChoices=m.usedChoices.map(Number);
       if(m.recovery!=null) recovery=m.recovery;
+      renderJumpButtons();
       if(m.dist!=null) distance=visualDistance=Number(m.dist)||distance;
       alive=m.alive!==false;
       if(m.result==="fall"){
@@ -958,7 +960,8 @@ window.addEventListener("keydown",e=>{
 
 function jump(choice){
   if(!racing||!alive||usedChoices.includes(choice))return;
-  const next=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
+  // Include the current checkpoint when server progress is clamped at its exact metre.
+  const next=gaps.find(g=>(typeof g==="number"?g:g.at)>=distance-0.5);
   const at=next?(typeof next==="number"?next:next.at):null;
   if(at===null||distance<at-2||distance>=at+2){
     document.getElementById("raceStatus").textContent="⏳ Wait for the "+(at||"finish")+" m checkpoint!";
@@ -973,7 +976,7 @@ function updateHUD(){
   if(timer && raceStartedAt){const elapsed=Math.max(0,Date.now()-raceStartedAt);const mins=Math.floor(elapsed/60000);const secs=((elapsed%60000)/1000).toFixed(2);timer.textContent="TIME: "+String(mins).padStart(2,"0")+":"+secs.padStart(5,"0");}
   document.getElementById("distance").textContent=
     "Distance: "+Math.floor(distance)+" / 2000 m";
-  const nextGap=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
+  const nextGap=gaps.find(g=>(typeof g==="number"?g:g.at)>=distance-0.5);
   const remain=nextGap?(typeof nextGap==="number"?nextGap:nextGap.at)-distance:Math.max(0,2000-distance);
   const pitTitle=document.getElementById("pitTitle"); const pitInfo=document.getElementById("pitInfo");
   if(pitTitle) pitTitle.textContent=nextGap?"⚠️ GIANT PIT • "+Math.ceil(remain)+" m AHEAD":"🏁 FINISH LINE";
@@ -1578,7 +1581,7 @@ function animate(){
           if(status)status.textContent="🪙 +10 POINTS COLLECTED!";
         }
       });
-      const nextCheckpoint=gaps.find(g=>(typeof g==="number"?g:g.at)>distance);
+      const nextCheckpoint=gaps.find(g=>(typeof g==="number"?g:g.at)>=distance-0.5);
       const checkpointAt=nextCheckpoint?(typeof nextCheckpoint==="number"?nextCheckpoint:nextCheckpoint.at):null;
       // Snap to a stable checkpoint threshold; floating point frame timing
       // must not leave the runner a fraction of a metre short of the jump zone.
