@@ -1624,27 +1624,22 @@ function animate(){
         car.rotation.x=0;
       } else {
         car.position.x += (laneX[targetLane]-car.position.x)*Math.min(1,dt*10);
-        car.position.y=baseY;
-        car.rotation.z=Math.sin(runT)*.012;
+        // Keep the runner's root exactly on the road during normal running.
+        // A floating/bobbing root makes the legs look as if they are pedalling
+        // in mid-air instead of making ground contact.
+        car.position.y=0;
+        car.rotation.z=0;
         car.rotation.x=0;
 
-        // Static scanned human: subtle torso bob/lean so the character still
-        // reads as a moving runner from the chase camera.
         if(car.userData.realistic && car.userData.human){
           const h=car.userData.human;
-          const phase=(car.userData.runnerPhase||0)+runT*1.8;
-          // Keep the model's ground offset fixed from load time. Recomputing
-          // its bounding-box minimum every animation frame lifts the whole
-          // character whenever a foot swings up, making the runner appear to fly.
-          h.rotation.x=Math.sin(phase)*.012;
-          h.rotation.z=Math.cos(phase)*.018;
-          if(!humanMixer){
-            (car.userData.gaitBones||[]).forEach(({bone,kind,phase:offset,baseX,baseZ})=>{
-              const swing=Math.sin(phase+offset)*(kind==="arm"?.58:.78);
-              bone.rotation.x=baseX+swing;
-              bone.rotation.z=baseZ+(kind==="arm"?Math.cos(phase+offset)*.08:0);
-            });
-          }
+          // Do not bob or tilt the whole imported human. Only a genuine
+          // run/walk animation clip may drive the rig; fake bone swinging
+          // is deliberately disabled because it does not coordinate foot
+          // contact with the road and can look like running in the air.
+          h.position.y=0;
+          h.rotation.x=0;
+          h.rotation.z=0;
         }
       }
     }
