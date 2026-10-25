@@ -1551,7 +1551,8 @@ function animate(){
 
     if(finishGate){
       finishGate.position.z=3-2000/10;
-      finishGate.visible=(2000-distance)>-10&&(2000-distance)<650;
+      // Keep the finish arch visible from race start; only hide it after the runner has crossed it.
+      finishGate.visible=distance<2010;
       if(finishGate.children[finishGate.children.length-1]) finishGate.children[finishGate.children.length-1].visible=finishGate.visible;
     }
     gapObjects.forEach((gap,i)=>{
