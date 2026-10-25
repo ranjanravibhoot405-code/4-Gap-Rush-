@@ -1368,8 +1368,8 @@ function init3D(){
 // Visible checkered finish gantry at the 2000 m finish line.
   finishGate=new THREE.Group();
   const gateMat=new THREE.MeshStandardMaterial({color:0xffffff,emissive:0x4a4a4a,roughness:.45});
-  const postMat=new THREE.MeshStandardMaterial({color:0x50f6c5,emissive:0x064d3b,roughness:.45});
-  for(const x of [-6.4,6.4]){const post=new THREE.Mesh(new THREE.BoxGeometry(.48,5.8,.48),postMat);post.position.set(x,2.9,0);post.castShadow=true;finishGate.add(post);}
+  const finishPostMat=new THREE.MeshStandardMaterial({color:0x50f6c5,emissive:0x064d3b,roughness:.45});
+  for(const x of [-6.4,6.4]){const post=new THREE.Mesh(new THREE.BoxGeometry(.48,5.8,.48),finishPostMat);post.position.set(x,2.9,0);post.castShadow=true;finishGate.add(post);}
   const beam=new THREE.Mesh(new THREE.BoxGeometry(13.2,.72,.72),gateMat);beam.position.set(0,5.55,0);beam.castShadow=true;finishGate.add(beam);
   const checkerCanvas=document.createElement("canvas");checkerCanvas.width=512;checkerCanvas.height=128;
   const cc=checkerCanvas.getContext("2d");for(let y=0;y<8;y++)for(let x=0;x<32;x++){cc.fillStyle=(x+y)%2?"#fff":"#111";cc.fillRect(x*16,y*16,16,16);}cc.fillStyle="#ffdf00";cc.fillRect(90,35,332,58);cc.fillStyle="#111";cc.font="bold 48px Arial";cc.textAlign="center";cc.textBaseline="middle";cc.fillText("FINISH",256,64);
