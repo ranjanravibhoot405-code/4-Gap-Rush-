@@ -449,8 +449,13 @@ wss.on("connection", ws => {
         return;
       }
 
-      // The UI opens at 2 m before the gap. Enforce the same safe window
-      // on the server so a stale/modified client cannot jump too early.
+      // Mobile browsers can deliver the progress packet just after the
+      // jump click. Accept the distance attached to the jump request as well
+      // as the last server snapshot, but still enforce the narrow gap window.
+      const jumpDist = Number(m.dist);
+      if (Number.isFinite(jumpDist) && jumpDist >= gap.at - 2 && jumpDist <= gap.at + 2) {
+        player.dist = Math.max(player.dist, Math.min(jumpDist, gap.at + 2));
+      }
       if (player.dist < gap.at - 2 || player.dist > gap.at + 2) {
         return send(ws, { type:"error", message:"Jump is available from 2 m before to 2 m after the " + gap.at + " m gap." });
       }
