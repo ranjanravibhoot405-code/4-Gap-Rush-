@@ -218,11 +218,12 @@ async function loadHumanGLTF(){
       // Try more than one CDN and put a hard timeout on each request so a
       // blocked asset host cannot leave the avatar stuck on "loading".
       const sources=[
-        "https://cdn.jsdelivr.net/gh/kunalkushwaha/vsim@main/packages/assets/library/suited.glb",
-        "https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/suited.glb",
-        "https://cdn.jsdelivr.net/gh/kunalkushwaha/vsim@main/packages/assets/library/human.glb",
-        "/assets/human.glb",
-        "https://threejs.org/examples/models/gltf/Soldier.glb"
+        // Verified downloadable CC0 adult human with a genuine in-place run cycle.
+        // Keep this before the old unverified URLs so the cartoon/stylized
+        // Soldier demo is never preferred over the intended realistic runner.
+        "https://www.innerscene.com/api/library/run-jordan-3d-person-animated-f10ebd7e/download",
+        "https://www.innerscene.com/api/library/run-harper-3d-person-animated-a726b25c/download",
+        "/assets/human.glb"
       ];
       let lastError=null;
       for(const url of sources){
@@ -1355,7 +1356,7 @@ function init3D(){
       // making the human hover above the road. Strip root translation tracks
       // so the animation moves the limbs but never lifts/translates the whole
       // runner away from the road.
-      const runClip=(gltf.animations||[]).find(a=>/run|jog|walk/i.test(a.name));
+      const runClip=(gltf.animations||[]).find(a=>/run|jog|walk/i.test(a.name)) || (gltf.animations||[]).find(a=>a.duration>0.5);
       if(runClip){
         const safeClip=runClip.clone();
         safeClip.tracks=safeClip.tracks.filter(track=>{
