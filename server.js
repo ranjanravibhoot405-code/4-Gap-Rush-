@@ -18,8 +18,11 @@ let humanGlbSource = null;
 let humanGlbLastError = null;
 
 const HUMAN_GLB_SOURCES = [
-  "https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/suited.glb",
-  "https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/human.glb"
+  // These CC0 adult-human assets include an actual running animation.
+  // Keep the server proxy aligned with the browser loader so the same-origin
+  // endpoint does not return 502 and trigger the primitive/cartoon fallback.
+  "https://www.innerscene.com/api/library/run-jordan-3d-person-animated-f10ebd7e/download",
+  "https://www.innerscene.com/api/library/run-harper-3d-person-animated-a726b25c/download"
 ];
 
 // Always serve the model from this game's own origin. The browser therefore
