@@ -18,11 +18,9 @@ let humanGlbSource = null;
 let humanGlbLastError = null;
 
 const HUMAN_GLB_SOURCES = [
-  // These CC0 adult-human assets include an actual running animation.
-  // Keep the server proxy aligned with the browser loader so the same-origin
-  // endpoint does not return 502 and trigger the primitive/cartoon fallback.
-  "https://www.innerscene.com/api/library/run-jordan-3d-person-animated-f10ebd7e/download",
-  "https://www.innerscene.com/api/library/run-harper-3d-person-animated-a726b25c/download"
+  // Three.js Soldier GLB: military uniform character with a real Run animation.
+  // Serve it from the same origin to avoid browser CORS failures.
+  "https://threejs.org/examples/models/gltf/Soldier.glb"
 ];
 
 // Always serve the model from this game's own origin. The browser therefore
