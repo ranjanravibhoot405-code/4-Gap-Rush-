@@ -1027,7 +1027,7 @@ function updateRaceCamera(){
   // Anchor camera X to the middle of the track for the entire race. Following
   // the runner's lane horizontally makes every tree, road stripe and pit slide
   // across the screen, which looks like the whole track is vibrating.
-  if(!Number.isFinite(raceCameraAnchorX)) raceCameraAnchorX=laneX[1];
+  if(!Number.isFinite(raceCameraAnchorX)) raceCameraAnchorX=0;
   const desiredCamX=raceCameraAnchorX+side*radius;
   const camZ=car.position.z+back*radius;
   const camY=2.25+cameraPitch*1.65;
@@ -1637,7 +1637,9 @@ function animate(){
     if(car){
       // Keep the runner aligned with the selected lane every frame. This is
       // important on touch devices where a lane tap can occur between frames.
-      car.position.x += (laneX[targetLane]-car.position.x)*Math.min(1,dt*7.5);
+      // Frame-rate independent easing: avoids visible jitter on 30–60 Hz phones.
+      const laneBlend=1-Math.exp(-10*Math.max(0,dt));
+      car.position.x += (laneX[targetLane]-car.position.x)*laneBlend;
       car.position.z=3-distance/10;
     }
 
