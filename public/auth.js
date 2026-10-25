@@ -211,9 +211,9 @@ if (!configReady()) {
       } catch (e) {
         const code = e?.code || "";
         message((code === "auth/invalid-api-key" || code === "auth/api-key-not-valid" || /API key not valid/i.test(e?.message || ""))
-          ? "Firebase API key is invalid or restricted. The game code is loading Firebase correctly; check the Web App API key in Google Cloud/Firebase and allow this Render site."
+          ? "Firebase API key rejected by Google. Copy the current Web App apiKey from Firebase Project settings → Your apps → Web app, replace public/firebase-config.js, and check Google Cloud API-key restrictions for this Render domain."
           : code === "auth/unauthorized-domain"
-          ? "Firebase blocked this domain. Add four-gap-rush-klzw.onrender.com to Authentication → Settings → Authorized domains."
+          ? "Firebase blocked this domain. Add four-gap-rush-610f.onrender.com and four-gap-rush-klzw.onrender.com (without https:// or trailing slash) to Authentication → Settings → Authorized domains."
           : code === "auth/operation-not-allowed"
           ? "Google Sign-in is not enabled in Firebase Authentication."
           : (e.message || "Google sign-in failed."), true);
@@ -241,11 +241,11 @@ if (!configReady()) {
         recaptcha = null;
         if ($("recaptcha-container")) $("recaptcha-container").innerHTML = "";
         message((code === "auth/invalid-api-key" || code === "auth/api-key-not-valid" || /API key not valid/i.test(e?.message || ""))
-          ? "Firebase API key is invalid or restricted. Check the Web App API key in Google Cloud/Firebase."
+          ? "Firebase rejected the Web App API key. Copy the current apiKey from Firebase Project settings → Your apps → Web app into public/firebase-config.js; check Google Cloud API-key restrictions."
           : code === "auth/operation-not-allowed"
           ? "Phone Sign-in is not enabled in Firebase Authentication."
           : code === "auth/unauthorized-domain"
-          ? "This game domain is not authorized in Firebase Authentication."
+          ? "This game domain is not authorized. Add four-gap-rush-610f.onrender.com and four-gap-rush-klzw.onrender.com (without https:// or trailing slash) to Firebase Authentication → Settings → Authorized domains."
           : code === "auth/too-many-requests"
           ? "Firebase temporarily throttled SMS requests. Try again later or use a different test number."
           : (e.message || "Could not send OTP. Check Phone provider, Authorized domains and SMS region settings."), true);
