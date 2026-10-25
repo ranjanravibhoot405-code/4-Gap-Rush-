@@ -1609,6 +1609,18 @@ function animate(){
 
     const runT=Date.now()*.009;
     if(humanMixer) humanMixer.update(dt);
+    // Keep the animated human's lowest foot on the runner's ground plane.
+    // Some downloaded run cycles animate the hips/feet with a different origin;
+    // fitting only once at load time makes the whole runner hover in mid-air.
+    if(car?.userData?.human && !fallSequence && jumpTimer<=0){
+      const runner=car.userData.human;
+      runner.updateMatrixWorld(true);
+      const footBox=new THREE.Box3().setFromObject(runner);
+      if(Number.isFinite(footBox.min.y)){
+        runner.position.y += -footBox.min.y;
+        runner.updateMatrixWorld(true);
+      }
+    }
     if(car&&!fallSequence){
       const baseY=Math.max(0,Math.sin(runT*2)*.035);
       if(fallTimer>0){
