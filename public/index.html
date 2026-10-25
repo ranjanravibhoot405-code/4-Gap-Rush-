@@ -1550,8 +1550,14 @@ function animate(){
     });
 
     if(finishGate){
-      finishGate.position.z=3-2000/10;
-      // Keep the finish arch visible from race start; only hide it after the runner has crossed it.
+      const finishRemaining=Math.max(0,2000-distance);
+      // Show a clear finish arch on the road ahead even when the true finish
+      // is beyond the mobile camera's useful horizon. As the runner gets
+      // within 750 m, the arch converges to its exact 2000 m world position.
+      // The server's finish distance remains 2000 m; this is only a visual
+      // approach marker so the player can always see where they are heading.
+      const visibleLead=Math.min(finishRemaining/10,75);
+      finishGate.position.z=car.position.z-visibleLead;
       finishGate.visible=distance<2010;
       if(finishGate.children[finishGate.children.length-1]) finishGate.children[finishGate.children.length-1].visible=finishGate.visible;
     }
