@@ -383,6 +383,19 @@ function applyCharacterStyle(root,character){
 function applyDressToModel(root,dressId){
   if(!root)return;
   const dress=DRESS_CATALOG.find(d=>d.id===dressId)||DRESS_CATALOG[0];
+
+  // Imported rigged human models already have real body/clothing geometry.
+  // The primitive box/capsule outfit overlay was being drawn ON TOP of that
+  // model, producing the huge dark chest block and cylinder-shaped limbs seen
+  // on mobile. Keep the real model clean; only use procedural clothes on the
+  // emergency primitive fallback avatar.
+  let hasRig=false;
+  root.traverse(o=>{if(o.isBone)hasRig=true;});
+  if(hasRig){
+    const old=root.getObjectByName("4GAP_STYLE_OUTFIT");
+    if(old)old.parent?.remove(old);
+    return;
+  }
   createStylishOutfit(root,dress.id);
 }
 
