@@ -478,13 +478,15 @@ wss.on("connection", ws => {
       // Treat the click's reported position as authoritative for the safe-zone
       // check; stale server progress must not reject a valid mobile tap.
       const clickInSafeZone = Number.isFinite(jumpDist) &&
-        jumpDist >= gap.at - 12 && jumpDist <= gap.at - 6.5;
-      const serverInSafeZone = player.dist >= gap.at - 12 && player.dist <= gap.at - 6.5;
+        jumpDist >= gap.at - 20 && jumpDist <= gap.at + 3;
+      const serverInSafeZone = Number.isFinite(player.dist) &&
+        player.dist >= gap.at - 20 && player.dist <= gap.at + 3;
       if (!clickInSafeZone && !serverInSafeZone) {
         return send(ws, { type:"error", message:"Choose a jump in the marked zone before the gap." });
       }
-      // Lock take-off exactly 7 m before the pit. Never launch from above water.
-      player.dist = gap.at - 7;
+      // Accept the jump tap despite a small mobile timing difference, then
+      // resolve it beyond the pit so the client is never left clamped at take-off.
+      player.dist = Math.max(player.dist, gap.at - 7);
 
       const choice = Number(m.choice);
       const remainingChoices = [3,5,7,9].filter(n => !player.usedChoices.includes(n));
