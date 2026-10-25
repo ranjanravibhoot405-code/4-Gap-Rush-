@@ -424,10 +424,10 @@ wss.on("connection", ws => {
       // packet. The prompt starts 2.5 m before the gap, so the old +/-2 m
       // server gate rejected every auto-skip and left the race frozen.
       const skipDist = Number(m.dist);
-      if (Number.isFinite(skipDist) && skipDist >= gap.at - 5.75 && skipDist <= gap.at + 2.75) {
+      if (Number.isFinite(skipDist) && skipDist >= gap.at - 7.75 && skipDist <= gap.at + 2.75) {
         player.dist = Math.max(player.dist, Math.min(skipDist, gap.at + 2.75));
       }
-      if (player.dist < gap.at - 5.75 || player.dist > gap.at + 2.75) return;
+      if (player.dist < gap.at - 7.75 || player.dist > gap.at + 2.75) return;
       player.gapIndex++;
       const hadRecovery = player.recovery > 0;
       if (hadRecovery) player.recovery--;
@@ -461,12 +461,12 @@ wss.on("connection", ws => {
       // jump click. Accept the distance attached to the jump request as well
       // as the last server snapshot, but still enforce the narrow gap window.
       const jumpDist = Number(m.dist);
-      if (Number.isFinite(jumpDist) && jumpDist >= gap.at - 5.75 && jumpDist <= gap.at + 2.75) {
+      if (Number.isFinite(jumpDist) && jumpDist >= gap.at - 7.75 && jumpDist <= gap.at + 2.75) {
         player.dist = Math.max(player.dist, Math.min(jumpDist, gap.at + 2.75));
       }
       // Offer the jump safely before the pit edge, with tolerance for mobile timing.
-      if (player.dist < gap.at - 5.75 || player.dist > gap.at + 2.75) {
-        return send(ws, { type:"error", message:"Jump option appears about 5 m before the gap. Try again in the marked safe zone." });
+      if (player.dist < gap.at - 7.75 || player.dist > gap.at + 2.75) {
+        return send(ws, { type:"error", message:"Jump option appears about 7 m before the gap. Try again in the marked safe zone." });
       }
 
       const choice = Number(m.choice);
