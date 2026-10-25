@@ -1638,7 +1638,7 @@ function animate(){
       // Keep the runner aligned with the selected lane every frame. This is
       // important on touch devices where a lane tap can occur between frames.
       // Frame-rate independent easing: avoids visible jitter on 30–60 Hz phones.
-      const laneBlend=1-Math.exp(-10*Math.max(0,dt));
+      const laneBlend=1-Math.exp(-7*Math.max(0,dt));
       car.position.x += (laneX[targetLane]-car.position.x)*laneBlend;
       car.position.z=3-distance/10;
     }
