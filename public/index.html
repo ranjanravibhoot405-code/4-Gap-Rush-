@@ -193,9 +193,12 @@ async function loadHumanGLTF(){
       // the GLTFLoader module must have the same fallback or the model never
       // reaches any of its GLB source URLs when jsDelivr is blocked.
       let GLTFLoader=null,lastImportError=null;
+      // Use jsDelivr's +esm transformer. The plain examples/jsm file imports
+      // from the bare specifier "three", which browsers cannot resolve by
+      // themselves; that import failure causes every GLB source to be skipped.
       const loaderModules=[
-        "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js",
-        "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js"
+        "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm",
+        "https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js"
       ];
       for(const moduleUrl of loaderModules){
         try{
@@ -248,7 +251,15 @@ async function loadHumanGLTF(){
 }
 
 async function cloneHumanScene(gltf){
-  const {clone}=await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js");
+  // Load the transformed ES module so its internal Three.js imports resolve in browsers.
+  let clone;
+  try{
+    ({clone}=await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js/+esm"));
+  }catch(firstError){
+    console.warn("4 GAP RUSH: SkeletonUtils primary CDN failed; trying esm.sh",firstError);
+    ({clone}=await import("https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js"));
+  }
+  if(typeof clone!=="function")throw new Error("SkeletonUtils clone export missing");
   return clone(gltf.scene);
 }
 
