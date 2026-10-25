@@ -1596,7 +1596,7 @@ function animate(){
       const laneUI=document.getElementById("laneControls");
       if(laneUI) laneUI.style.display=checkpointReady?"none":"flex";
       if(guide) guide.classList.toggle("hidden",!checkpointReady);
-      if(checkpointReady){if(!jumpPromptSince)jumpPromptSince=now;if(now-jumpPromptSince>1800){send({type:"skip_gap"});jumpPromptSince=0;}}else jumpPromptSince=0;
+      if(checkpointReady){if(!jumpPromptSince)jumpPromptSince=now;if(now-jumpPromptSince>1800){send({type:"skip_gap",dist:distance});jumpPromptSince=0;}}else jumpPromptSince=0;
       if(now-lastProgressSent>150){
         send({type:"progress",dist:distance,lane:targetLane});
         lastProgressSent=now;
