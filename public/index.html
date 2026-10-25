@@ -119,7 +119,7 @@ button:disabled{opacity:.35}
 <button onclick="jump(9)">9</button>
 </div>
 </div>
-<p>Jump options appear about 5 m before each gap — choose your power before reaching the edge.</p>
+<p>Jump options appear about 7 m before each gap — choose your power before reaching the edge.</p>
 </section>
 
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
@@ -949,9 +949,8 @@ function renderJumpButtons(){
 function setLane(dir){
   if(!racing || !alive) return;
   targetLane=Math.max(0,Math.min(laneX.length-1,targetLane+dir));
-  // Apply lane changes immediately for touch controls; animation loop smooths
-  // the movement between lanes on slower mobile devices.
-  if(car) car.position.x=laneX[targetLane];
+  // Do not teleport the runner on touch input. Let the render loop ease into
+  // the selected lane so lane changes feel continuous instead of a freeze/jump.
 }
 window.addEventListener("keydown",e=>{
   if(e.key==="ArrowLeft"||e.key.toLowerCase()==="a")setLane(-1);
@@ -963,7 +962,7 @@ function jump(choice){
   // Include the current checkpoint when server progress is clamped at its exact metre.
   const next=gaps.find(g=>(typeof g==="number"?g:g.at)>=distance-0.5);
   const at=next?(typeof next==="number"?next:next.at):null;
-  if(at===null||distance<at-2||distance>=at+2){
+  if(at===null||distance<at-7.5||distance>=at+2.75){
     document.getElementById("raceStatus").textContent="⏳ Wait for the "+(at||"finish")+" m checkpoint!";
     return;
   }
@@ -1585,11 +1584,11 @@ function animate(){
       const checkpointAt=nextCheckpoint?(typeof nextCheckpoint==="number"?nextCheckpoint:nextCheckpoint.at):null;
       // Snap to a stable checkpoint threshold; floating point frame timing
       // must not leave the runner a fraction of a metre short of the jump zone.
-      if(checkpointAt!==null && visualDistance>=checkpointAt-5.5 && visualDistance<checkpointAt-5){
-        visualDistance=checkpointAt-5;
+      if(checkpointAt!==null && visualDistance>=checkpointAt-7.5 && visualDistance<checkpointAt-7){
+        visualDistance=checkpointAt-7;
         distance=Math.max(distance,visualDistance);
       }
-      const checkpointReady=checkpointAt!==null && distance>=checkpointAt-5.5 && distance<checkpointAt+0.25;
+      const checkpointReady=checkpointAt!==null && distance>=checkpointAt-7.5 && distance<checkpointAt+0.25;
       const controls=document.getElementById("controls");
       const guide=document.getElementById("jumpGuide");
       if(controls) controls.classList.toggle("hidden",!checkpointReady);
@@ -1626,7 +1625,7 @@ function animate(){
     if(car){
       // Keep the runner aligned with the selected lane every frame. This is
       // important on touch devices where a lane tap can occur between frames.
-      car.position.x += (laneX[targetLane]-car.position.x)*Math.min(1,dt*12);
+      car.position.x += (laneX[targetLane]-car.position.x)*Math.min(1,dt*7.5);
       car.position.z=3-distance/10;
     }
 
