@@ -1018,24 +1018,25 @@ function setupCameraControls(){
 }
 
 let raceCameraTargetX=null;
+let raceCameraAnchorX=null;
 function updateRaceCamera(){
   if(!camera||!car)return;
   const radius=9.5;
   const side=Math.sin(cameraYaw);
   const back=Math.cos(cameraYaw);
-  const desiredCamX=car.position.x+side*radius;
+  // Anchor camera X to the middle of the track for the entire race. Following
+  // the runner's lane horizontally makes every tree, road stripe and pit slide
+  // across the screen, which looks like the whole track is vibrating.
+  if(!Number.isFinite(raceCameraAnchorX)) raceCameraAnchorX=laneX[1];
+  const desiredCamX=raceCameraAnchorX+side*radius;
   const camZ=car.position.z+back*radius;
   const camY=2.25+cameraPitch*1.65;
-  // Smooth camera lateral follow so a lane tap moves the runner, not the
-  // entire track across the screen. Avoid snapping camera and look target.
-  if(!Number.isFinite(camera.position.x)) camera.position.x=desiredCamX;
-  camera.position.x+=(desiredCamX-camera.position.x)*0.075;
+  camera.position.x=desiredCamX;
   camera.position.y=camY;
   camera.position.z=camZ;
   const lookDistance=7.0;
-  const desiredTargetX=car.position.x-side*lookDistance;
-  if(!Number.isFinite(raceCameraTargetX)) raceCameraTargetX=desiredTargetX;
-  raceCameraTargetX+=(desiredTargetX-raceCameraTargetX)*0.075;
+  const desiredTargetX=raceCameraAnchorX-side*lookDistance;
+  raceCameraTargetX=desiredTargetX;
   const targetZ=car.position.z-back*lookDistance;
   const targetY=0.72+cameraPitch*0.6;
   camera.lookAt(raceCameraTargetX,targetY,targetZ);
@@ -1043,6 +1044,7 @@ function updateRaceCamera(){
 
 function init3D(){
   raceCameraTargetX=null;
+  raceCameraAnchorX=laneX[1];
   if(animationFrameId) cancelAnimationFrame(animationFrameId);
   // Clear references from any previous race scene before rebuilding.
   roadLines.length=0;
