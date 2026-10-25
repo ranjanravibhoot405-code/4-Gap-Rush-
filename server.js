@@ -430,17 +430,22 @@ wss.on("connection", ws => {
       // Mobile frame timing and authoritative snapshots can differ by several
       // metres; a narrow gate here can permanently freeze the whole race.
       const nearTakeoff = Number.isFinite(skipDist) &&
-        skipDist >= gap.at - 12 && skipDist <= gap.at + 3;
-      const serverNearTakeoff = player.dist >= gap.at - 12 && player.dist <= gap.at + 3;
-      if (!nearTakeoff && !serverNearTakeoff) return;
-      // A missed tap must not permanently eliminate the runner. Apply a
-      // time/distance penalty, consume recovery if available, and continue
-      // beyond this gap so the player can still finish the race.
+        skipDist >= gap.at - 20 && skipDist <= gap.at + 10;
+      const serverNearTakeoff = Number.isFinite(player.dist) &&
+        player.dist >= gap.at - 20 && player.dist <= gap.at + 10;
+      // The server clamps progress at gap.at - 7. On mobile, the client can
+      // send a slightly stale distance or receive a snapshot out of order.
+      // Do not silently ignore a legitimate auto-skip at the active gap:
+      // that leaves the runner permanently frozen at the first checkpoint.
+      if (!nearTakeoff && !serverNearTakeoff && player.dist < gap.at - 20) return;
+      // Missed/untapped jump: apply a small penalty and continue past the pit.
+      // Do not enter a long fall/recovery lock that can strand the local runner.
       player.gapIndex++;
       if (player.recovery > 0) player.recovery--;
       player.dist = gap.at + 20;
       player.alive = true;
-      send(ws, { type: "jump_result", result: "fall", recovery: Math.max(0, player.recovery), dist: player.dist, alive: player.alive, usedChoices: player.usedChoices || [] });
+      send(ws, { type: "jump_result", result: "missed", recovery: Math.max(0, player.recovery), dist: player.dist, alive: true, usedChoices: player.usedChoices || [] });
+      broadcast(room, raceSnapshot(room));
       broadcast(room, roomState(room));
       if ([...room.players.values()].every(p => p.finished || !p.alive)) {
         const results = [...room.players.values()]
