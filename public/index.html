@@ -119,7 +119,7 @@ button:disabled{opacity:.35}
 <button onclick="jump(9)">9</button>
 </div>
 </div>
-<p>Jump is available about 2 m before each gap — choose your power in the safe zone.</p>
+<p>Jump options appear about 5 m before each gap — choose your power before reaching the edge.</p>
 </section>
 
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
@@ -1585,11 +1585,11 @@ function animate(){
       const checkpointAt=nextCheckpoint?(typeof nextCheckpoint==="number"?nextCheckpoint:nextCheckpoint.at):null;
       // Snap to a stable checkpoint threshold; floating point frame timing
       // must not leave the runner a fraction of a metre short of the jump zone.
-      if(checkpointAt!==null && visualDistance>=checkpointAt-2.5 && visualDistance<checkpointAt-2){
-        visualDistance=checkpointAt-2;
+      if(checkpointAt!==null && visualDistance>=checkpointAt-5.5 && visualDistance<checkpointAt-5){
+        visualDistance=checkpointAt-5;
         distance=Math.max(distance,visualDistance);
       }
-      const checkpointReady=checkpointAt!==null && distance>=checkpointAt-2.5 && distance<checkpointAt+0.25;
+      const checkpointReady=checkpointAt!==null && distance>=checkpointAt-5.5 && distance<checkpointAt+0.25;
       const controls=document.getElementById("controls");
       const guide=document.getElementById("jumpGuide");
       if(controls) controls.classList.toggle("hidden",!checkpointReady);
