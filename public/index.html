@@ -188,7 +188,28 @@ let humanGltfPromise=null;
 async function loadHumanGLTF(){
   if(!humanGltfPromise){
     humanGltfPromise=(async()=>{
-      const {GLTFLoader}=await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js");
+      // Do not make the entire realistic-human feature depend on jsDelivr.
+      // The main Three.js script already has a jsDelivr -> unpkg fallback;
+      // the GLTFLoader module must have the same fallback or the model never
+      // reaches any of its GLB source URLs when jsDelivr is blocked.
+      let GLTFLoader=null,lastImportError=null;
+      const loaderModules=[
+        "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js",
+        "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js"
+      ];
+      for(const moduleUrl of loaderModules){
+        try{
+          const mod=await import(moduleUrl);
+          if(typeof mod.GLTFLoader!=="function")throw new Error("GLTFLoader export missing from "+moduleUrl);
+          GLTFLoader=mod.GLTFLoader;
+          console.info("4 GAP RUSH: GLTFLoader module loaded",moduleUrl);
+          break;
+        }catch(err){
+          lastImportError=err;
+          console.warn("4 GAP RUSH: GLTFLoader CDN failed; trying backup",moduleUrl,err);
+        }
+      }
+      if(!GLTFLoader)throw new Error("Could not import GLTFLoader from either CDN: "+String(lastImportError?.message||lastImportError));
       const loader=new GLTFLoader();
       // The MakeHuman "suited" model is a textured, realistic full-body human.
       // Try more than one CDN and put a hard timeout on each request so a
